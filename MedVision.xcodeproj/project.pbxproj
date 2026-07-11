@@ -32,8 +32,8 @@
 		327E5EAF3000855600B3582A = {
 			isa = PBXGroup;
 			children = (
-				327E5EBA3000855600B3582A /* MedVision */,
 				327E5EB93000855600B3582A /* Products */,
+				327E5EBA3000855600B3582A /* MedVision */,
 			);
 			sourceTree = "<group>";
 		};
