@@ -2,3 +2,6 @@
 # Xcode user-specific files
 **/xcuserdata/
 *.xcuserstate
+
+# Placeholder / mock data (local only)
+**/PlaceholderData.swift

@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct MedVisionApp: App {
@@ -6,5 +7,6 @@ struct MedVisionApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(for: [Medicine.self, DoseEvent.self])
     }
 }

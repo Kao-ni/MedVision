@@ -9,35 +9,22 @@ struct ContentView: View {
         ZStack {
             if showSplash {
                 SplashScreenView()
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline:.now() + 2) {
-                            withAnimation {
-                                showSplash = false
-                            }
-                        }
+                    .task {
+                        try? await Task.sleep(for: .seconds(2))
+                        withAnimation { showSplash = false }
                     }
             } else {
                 TabView {
                     TodayView()
-                        .tabItem {
-                            Image(systemName: "sun.horizon")
-                        }
+                        .tabItem { Label("Today", systemImage: "sun.horizon") }
                     MedicinesView()
-                        .tabItem {
-                            Image(systemName: "pills")
-                        }
+                        .tabItem { Label("Medicines", systemImage: "pills") }
                     ScanView()
-                        .tabItem {
-                            Image(systemName: "document.viewfinder")
-                        }
+                        .tabItem { Label("Scan", systemImage: "document.viewfinder") }
                     HistoryView()
-                        .tabItem {
-                            Image(systemName: "clock")
-                        }
+                        .tabItem { Label("History", systemImage: "clock") }
                     ProfileView()
-                        .tabItem {
-                            Image(systemName: "person.crop.circle")
-                        }
+                        .tabItem { Label("Profile", systemImage: "person.crop.circle") }
                 }
                 .sheet(isPresented: Binding(
                     get: { !showSplash && shouldShowOnboarding },
