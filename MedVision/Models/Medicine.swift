@@ -12,20 +12,23 @@ enum MedicineForm: String, CaseIterable, Codable {
 
 @Model
 class Medicine {
+    // Stable UUID used to generate unique notification identifiers.
+    var id: UUID
+
     var name: String
     var dosage: String
     var form: MedicineForm
     var notes: String
     var photoData: Data?
 
-    // Schedule
-    var scheduledTimes: [Date]  // times of day to take this medicine
-    var frequencyNote: String   // e.g. "with food", "every 8 hours"
+    var scheduledTimes: [Date]
+    var frequencyNote: String
 
     @Relationship(deleteRule: .cascade, inverse: \DoseEvent.medicine)
     var doseEvents: [DoseEvent] = []
 
     init(
+        id: UUID = UUID(),
         name: String,
         dosage: String = "",
         form: MedicineForm = .pill,
@@ -34,6 +37,7 @@ class Medicine {
         scheduledTimes: [Date] = [],
         frequencyNote: String = ""
     ) {
+        self.id = id
         self.name = name
         self.dosage = dosage
         self.form = form

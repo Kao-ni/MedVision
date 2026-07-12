@@ -3,6 +3,10 @@ import SwiftData
 
 @main
 struct MedVisionApp: App {
+    init() {
+        NotificationService.shared.setup()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

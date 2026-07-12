@@ -7,8 +7,9 @@ struct HistoryView: View {
     @State private var filter: DoseStatus? = nil
 
     private var filtered: [DoseEvent] {
-        guard let filter else { return events }
-        return events.filter { $0.status == filter }
+        let base = events.filter { $0.status != .pending }
+        guard let filter else { return base }
+        return base.filter { $0.status == filter }
     }
 
     private var sections: [(day: Date, events: [DoseEvent])] {
@@ -26,7 +27,7 @@ struct HistoryView: View {
                     ContentUnavailableView(
                         "No history yet",
                         systemImage: "clock.arrow.circlepath",
-                        description: Text("Doses you take, skip, or snooze will appear here.")
+                        description: Text("Doses you take, skip, or miss will appear here.")
                     )
                 } else {
                     list
@@ -57,7 +58,7 @@ struct HistoryView: View {
     private var filterPicker: some View {
         Picker("Filter", selection: $filter) {
             Text("All").tag(DoseStatus?.none)
-            ForEach(DoseStatus.allCases) { status in
+            ForEach(DoseStatus.allCases.filter { $0 != .pending }) { status in
                 Text(status.displayName).tag(DoseStatus?.some(status))
             }
         }
