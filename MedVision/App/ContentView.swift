@@ -6,42 +6,45 @@ struct ContentView: View {
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
     
     var body: some View {
-        VStack {
+        ZStack {
             if showSplash {
                 SplashScreenView()
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline:.now() + 2) {
                             withAnimation {
-                                    showSplash = false
+                                showSplash = false
                             }
                         }
                     }
-            }
-            else if shouldShowOnboarding {
-                OnboardingView()
-            }
-            else {
+            } else {
                 TabView {
                     TodayView()
                         .tabItem {
-                            Label("Today", systemImage: "bell.fill")
+                            Image(systemName: "sun.horizon")
                         }
                     MedicinesView()
                         .tabItem {
-                            Label("Medicines", systemImage: "pills.fill")
+                            Image(systemName: "pills")
                         }
                     ScanView()
                         .tabItem {
-                            Label("Scan", systemImage: "camera.fill")
+                            Image(systemName: "document.viewfinder")
                         }
                     HistoryView()
                         .tabItem {
-                            Label("History", systemImage: "calendar")
+                            Image(systemName: "clock")
                         }
                     ProfileView()
                         .tabItem {
-                            Label("Profile", systemImage: "gear")
+                            Image(systemName: "person.crop.circle")
                         }
+                }
+                .sheet(isPresented: Binding(
+                    get: { !showSplash && shouldShowOnboarding },
+                    set: { shouldShowOnboarding = $0 }
+                )) {
+                    OnboardingView()
+                        .interactiveDismissDisabled(true)
                 }
             }
         }

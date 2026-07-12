@@ -1,5 +1,12 @@
 import SwiftUI
 
+private struct OnboardingPage {
+    let systemImage: String
+    let color: Color
+    let title: String
+    let description: String
+}
+
 struct OnboardingView: View {
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
     @State private var currentPage = 0
@@ -98,13 +105,6 @@ struct OnboardingView: View {
             Spacer()
         }
     }
-}
-
-private struct OnboardingPage {
-    let systemImage: String
-    let color: Color
-    let title: String
-    let description: String
 }
 
 #Preview {
