@@ -2,7 +2,7 @@ import UserNotifications
 import Foundation
 
 /// Schedules and cancels local dose-reminder notifications.
-/// Uses medicine.id.uuidString as a stable prefix so all notifications
+/// Uses medicine.notificationTag as a stable prefix so all notifications
 /// for a given medicine can be found and replaced as a group.
 @MainActor
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
@@ -26,7 +26,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         // Remove any existing notifications for this medicine first.
         let pending = await center.pendingNotificationRequests()
         let stale = pending
-            .filter { $0.identifier.hasPrefix(medicine.id.uuidString) }
+            .filter { $0.identifier.hasPrefix(medicine.notificationTag) }
             .map(\.identifier)
         center.removePendingNotificationRequests(withIdentifiers: stale)
 
@@ -52,7 +52,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             trigger.hour = hour
             trigger.minute = minute
 
-            let id = "\(medicine.id.uuidString)-\(hour)-\(minute)"
+            let id = "\(medicine.notificationTag)-\(hour)-\(minute)"
             let request = UNNotificationRequest(
                 identifier: id,
                 content: content,
@@ -66,7 +66,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let center = UNUserNotificationCenter.current()
         let pending = await center.pendingNotificationRequests()
         let ids = pending
-            .filter { $0.identifier.hasPrefix(medicine.id.uuidString) }
+            .filter { $0.identifier.hasPrefix(medicine.notificationTag) }
             .map(\.identifier)
         center.removePendingNotificationRequests(withIdentifiers: ids)
     }

@@ -1,10 +1,17 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 
 struct ScanView: View {
-    @State private var showCamera = false
-    @State private var isRecognizing = false
+    @State private var showSourcePicker = false
+    @State private var showCamera      = false
+    @State private var showPhotoPicker = false
+    @State private var photoPickerItem: PhotosPickerItem?
+    @State private var showFilePicker  = false
+
+    @State private var isRecognizing    = false
     @State private var recognitionResult: RecognizedMedicine?
-    @State private var showAddMedicine = false
+    @State private var showAddMedicine  = false
     @State private var ocrErrorMessage: String?
 
     var body: some View {
@@ -46,9 +53,10 @@ struct ScanView: View {
                 Spacer()
 
                 VStack(spacing: 12) {
+                    // Primary action — tapping opens the source picker sheet.
                     Button {
                         ocrErrorMessage = nil
-                        showCamera = true
+                        showSourcePicker = true
                     } label: {
                         Group {
                             if isRecognizing {
@@ -57,7 +65,7 @@ struct ScanView: View {
                                     Text("Reading packet…")
                                 }
                             } else {
-                                Label("Open Camera", systemImage: "camera.fill")
+                                Label("Scan Medicine", systemImage: "document.viewfinder.fill")
                             }
                         }
                         .font(.headline)
@@ -68,13 +76,20 @@ struct ScanView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
                     .disabled(isRecognizing)
-                    .accessibilityLabel("Open camera to scan medicine packet")
+                    .accessibilityLabel("Scan a medicine packet")
+                    .confirmationDialog("Add a Photo of the Packet", isPresented: $showSourcePicker) {
+                        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                            Button("Take Photo") { showCamera = true }
+                        }
+                        Button("Photo Library") { showPhotoPicker = true }
+                        Button("Choose from Files") { showFilePicker = true }
+                    }
 
                     // Always-visible manual fallback (Golden rule 3)
                     Button {
                         recognitionResult = nil
-                        ocrErrorMessage = nil
-                        showAddMedicine = true
+                        ocrErrorMessage   = nil
+                        showAddMedicine   = true
                     } label: {
                         Label("Add Manually Instead", systemImage: "square.and.pencil")
                             .font(.headline)
@@ -89,12 +104,40 @@ struct ScanView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
+            // Camera
             .fullScreenCover(isPresented: $showCamera) {
                 CameraView(
                     onCapture: handleCapture,
                     onCancel: { showCamera = false }
                 )
             }
+            // Photo Library — native picker, auto-dismisses on selection
+            .photosPicker(
+                isPresented: $showPhotoPicker,
+                selection: $photoPickerItem,
+                matching: .images
+            )
+            .onChange(of: photoPickerItem) { _, item in
+                guard let item else { return }
+                Task {
+                    if let data  = try? await item.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        handleCapture(image)
+                    }
+                    photoPickerItem = nil
+                }
+            }
+            // Files
+            .sheet(isPresented: $showFilePicker) {
+                DocumentPickerView(
+                    onPick: { image in
+                        showFilePicker = false
+                        handleCapture(image)
+                    },
+                    onCancel: { showFilePicker = false }
+                )
+            }
+            // OCR result / manual add
             .sheet(isPresented: $showAddMedicine) {
                 AddMedicineView(prefilled: recognitionResult)
             }
@@ -109,15 +152,15 @@ struct ScanView: View {
             do {
                 let result = try await RecognitionService.shared.recognize(image)
                 recognitionResult = result
-                ocrErrorMessage = nil
+                ocrErrorMessage   = nil
             } catch {
-                // OCR failed — open AddMedicineView with empty fields so the user
-                // can still add the medicine manually (Golden rule 3).
+                // OCR failed — open AddMedicineView empty so the user can still
+                // add manually (Golden rule 3).
                 recognitionResult = nil
-                ocrErrorMessage = (error as? RecognitionError)?.errorDescription
+                ocrErrorMessage   = (error as? RecognitionError)?.errorDescription
                     ?? "Couldn't read the packet. Fill in the details below."
             }
-            isRecognizing = false
+            isRecognizing   = false
             showAddMedicine = true
         }
     }
@@ -148,19 +191,63 @@ private struct CameraView: UIViewControllerRepresentable {
 
         init(onCapture: @escaping (UIImage) -> Void, onCancel: @escaping () -> Void) {
             self.onCapture = onCapture
+            self.onCancel  = onCancel
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { onCancel() }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage { onCapture(image) }
+            else { onCancel() }
+        }
+    }
+}
+
+// MARK: - Files / document picker wrapper
+
+private struct DocumentPickerView: UIViewControllerRepresentable {
+    var onPick: (UIImage) -> Void
+    var onCancel: () -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.image])
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPick: onPick, onCancel: onCancel)
+    }
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onPick: (UIImage) -> Void
+        let onCancel: () -> Void
+
+        init(onPick: @escaping (UIImage) -> Void, onCancel: @escaping () -> Void) {
+            self.onPick   = onPick
             self.onCancel = onCancel
         }
 
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            onCancel()
-        }
-
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            if let image = info[.originalImage] as? UIImage {
-                onCapture(image)
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first,
+                  url.startAccessingSecurityScopedResource() else { onCancel(); return }
+            defer { url.stopAccessingSecurityScopedResource() }
+            if let data  = try? Data(contentsOf: url),
+               let image = UIImage(data: data) {
+                onPick(image)
             } else {
                 onCancel()
             }
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            onCancel()
         }
     }
 }

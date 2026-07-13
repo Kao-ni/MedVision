@@ -12,8 +12,10 @@ enum MedicineForm: String, CaseIterable, Codable {
 
 @Model
 class Medicine {
-    // Stable UUID used to generate unique notification identifiers.
-    var id: UUID
+    // Stable per-medicine tag used to group notification identifiers.
+    // Intentionally NOT named "id" to avoid conflicting with @Model's
+    // synthesised Identifiable conformance (id: PersistentIdentifier).
+    var notificationTag: String
 
     var name: String
     var dosage: String
@@ -28,7 +30,6 @@ class Medicine {
     var doseEvents: [DoseEvent] = []
 
     init(
-        id: UUID = UUID(),
         name: String,
         dosage: String = "",
         form: MedicineForm = .pill,
@@ -37,7 +38,7 @@ class Medicine {
         scheduledTimes: [Date] = [],
         frequencyNote: String = ""
     ) {
-        self.id = id
+        self.notificationTag = UUID().uuidString
         self.name = name
         self.dosage = dosage
         self.form = form
