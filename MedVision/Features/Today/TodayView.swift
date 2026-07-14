@@ -3,6 +3,8 @@ import SwiftData
 
 struct TodayView: View {
     @Query(sort: \DoseEvent.scheduledTime) private var allEvents: [DoseEvent]
+    @Query private var allMedicines: [Medicine]
+    @Environment(\.modelContext) private var context
 
     private var todayEvents: [DoseEvent] {
         allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
@@ -26,6 +28,7 @@ struct TodayView: View {
                 }
             }
             .navigationTitle("Today")
+            .task { generateTodayEventsIfNeeded() }
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 0) {
@@ -80,6 +83,31 @@ struct TodayView: View {
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    private func generateTodayEventsIfNeeded() {
+        let calendar = Calendar.current
+        for medicine in allMedicines {
+            for time in medicine.scheduledTimes {
+                let comps = calendar.dateComponents([.hour, .minute], from: time)
+                guard let scheduled = calendar.date(
+                    bySettingHour: comps.hour ?? 0,
+                    minute: comps.minute ?? 0,
+                    second: 0,
+                    of: Date()
+                ) else { continue }
+
+                let exists = medicine.doseEvents.contains {
+                    calendar.isDateInToday($0.scheduledTime) &&
+                    calendar.component(.hour, from: $0.scheduledTime) == comps.hour &&
+                    calendar.component(.minute, from: $0.scheduledTime) == comps.minute
+                }
+
+                if !exists {
+                    context.insert(DoseEvent(scheduledTime: scheduled, status: .pending, medicine: medicine))
+                }
+            }
+        }
     }
 
     private var emptyState: some View {

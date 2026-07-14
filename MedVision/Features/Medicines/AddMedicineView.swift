@@ -202,17 +202,18 @@ struct AddMedicineView: View {
         let trimmedFreqNote = frequencyNote.trimmingCharacters(in: .whitespaces)
         let sorted          = scheduledTimes.sorted()
 
-        if let medicine = existing {
-            medicine.name          = trimmedName
-            medicine.dosage        = trimmedDosage
-            medicine.form          = form
-            medicine.notes         = trimmedNotes
-            medicine.scheduledTimes = sorted
-            medicine.frequencyNote = trimmedFreqNote
-            medicine.photoData     = photoData
-            Task { await NotificationService.shared.schedule(for: medicine) }
+        let medicine: Medicine
+        if let existing {
+            existing.name           = trimmedName
+            existing.dosage         = trimmedDosage
+            existing.form           = form
+            existing.notes          = trimmedNotes
+            existing.scheduledTimes = sorted
+            existing.frequencyNote  = trimmedFreqNote
+            existing.photoData      = photoData
+            medicine = existing
         } else {
-            let medicine = Medicine(
+            let m = Medicine(
                 name: trimmedName,
                 dosage: trimmedDosage,
                 form: form,
@@ -221,10 +222,32 @@ struct AddMedicineView: View {
                 scheduledTimes: sorted,
                 frequencyNote: trimmedFreqNote
             )
-            context.insert(medicine)
-            Task { await NotificationService.shared.schedule(for: medicine) }
+            context.insert(m)
+            medicine = m
         }
+
+        generateTodayEvents(for: medicine, newTimes: sorted)
+        Task { await NotificationService.shared.schedule(for: medicine) }
         dismiss()
+    }
+
+    private func generateTodayEvents(for medicine: Medicine, newTimes: [Date]) {
+        let calendar = Calendar.current
+        // Remove today's pending events so they're rebuilt from the current schedule.
+        medicine.doseEvents
+            .filter { calendar.isDateInToday($0.scheduledTime) && $0.status == .pending }
+            .forEach { context.delete($0) }
+
+        for time in newTimes {
+            let comps = calendar.dateComponents([.hour, .minute], from: time)
+            guard let scheduled = calendar.date(
+                bySettingHour: comps.hour ?? 0,
+                minute: comps.minute ?? 0,
+                second: 0,
+                of: Date()
+            ) else { continue }
+            context.insert(DoseEvent(scheduledTime: scheduled, status: .pending, medicine: medicine))
+        }
     }
 }
 
