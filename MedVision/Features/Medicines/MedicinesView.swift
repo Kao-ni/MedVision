@@ -77,5 +77,5 @@ private struct MedicineRow: View {
 
 #Preview {
     MedicinesView()
-        .modelContainer(PlaceholderData.previewContainer)
+        .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
 }

@@ -234,5 +234,5 @@ struct TodayDoseRow: View {
 
 #Preview {
     TodayView()
-        .modelContainer(PlaceholderData.previewContainer)
+        .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
 }

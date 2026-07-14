@@ -136,7 +136,7 @@ struct MedicineDetailView: View {
 
 #Preview {
     NavigationStack {
-        MedicineDetailView(medicine: PlaceholderData.paracetamol)
+        MedicineDetailView(medicine: Medicine(name: "Paracetamol", dosage: "500mg", form: .pill))
     }
-    .modelContainer(PlaceholderData.previewContainer)
+    .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
 }

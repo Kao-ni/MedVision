@@ -3,14 +3,15 @@ import SwiftData
 import PhotosUI
 
 // Handles three entry paths:
-//   • existing != nil          → Edit an existing medicine
-//   • prefilled != nil         → Confirm OCR result (post-scan)
-//   • both nil                 → Manual add
+//   - existing != nil          -> Edit an existing medicine
+//   - prefilled != nil         -> Confirm OCR result (post-scan)
+//   - both nil                 -> Manual add
 //
-// Golden rule: never auto-save — the user always confirms before anything is written.
+// Golden rule: never auto-save - the user always confirms before anything is written.
 struct AddMedicineView: View {
     var prefilled: RecognizedMedicine? = nil
     var existing: Medicine? = nil
+    var initialPhotoData: Data? = nil
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -28,9 +29,10 @@ struct AddMedicineView: View {
     private var isOCRResult: Bool { prefilled != nil && existing == nil }
     private var isSaveDisabled: Bool { name.trimmingCharacters(in: .whitespaces).isEmpty }
 
-    init(prefilled: RecognizedMedicine? = nil, existing: Medicine? = nil) {
+    init(prefilled: RecognizedMedicine? = nil, existing: Medicine? = nil, initialPhotoData: Data? = nil) {
         self.prefilled = prefilled
         self.existing = existing
+        self.initialPhotoData = initialPhotoData
 
         if let m = existing {
             _name          = State(initialValue: m.name)
@@ -47,7 +49,7 @@ struct AddMedicineView: View {
             _notes         = State(initialValue: p.notes)
             _scheduledTimes = State(initialValue: [])
             _frequencyNote = State(initialValue: "")
-            _photoData     = State(initialValue: nil)
+            _photoData     = State(initialValue: p.photoData ?? initialPhotoData)
         } else {
             _name          = State(initialValue: "")
             _dosage        = State(initialValue: "")
@@ -55,7 +57,7 @@ struct AddMedicineView: View {
             _notes         = State(initialValue: "")
             _scheduledTimes = State(initialValue: [])
             _frequencyNote = State(initialValue: "")
-            _photoData     = State(initialValue: nil)
+            _photoData     = State(initialValue: initialPhotoData)
         }
         _photoItem = State(initialValue: nil)
     }
@@ -118,12 +120,10 @@ struct AddMedicineView: View {
         }
     }
 
-    // MARK: - Schedule Section
-
     private var scheduleSection: some View {
         Section {
             if scheduledTimes.isEmpty {
-                Text("No times set — add at least one to receive reminders.")
+                Text("No times set - add at least one to receive reminders.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -153,8 +153,6 @@ struct AddMedicineView: View {
                 .opacity(scheduledTimes.isEmpty ? 0 : 1)
         }
     }
-
-    // MARK: - Photo Section
 
     private var photoSection: some View {
         Section("Photo") {
@@ -189,8 +187,6 @@ struct AddMedicineView: View {
             }
         }
     }
-
-    // MARK: - Helpers
 
     private func defaultNewTime() -> Date {
         var comps = DateComponents()
@@ -234,15 +230,4 @@ struct AddMedicineView: View {
 
 #Preview {
     AddMedicineView()
-        .modelContainer(PlaceholderData.previewContainer)
-}
-
-#Preview("OCR Result") {
-    AddMedicineView(prefilled: RecognizedMedicine(
-        name: "Paracetamol",
-        dosage: "500 mg",
-        form: .pill,
-        notes: "Take with water"
-    ))
-    .modelContainer(PlaceholderData.previewContainer)
 }

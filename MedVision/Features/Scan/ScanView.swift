@@ -13,6 +13,7 @@ struct ScanView: View {
     @State private var recognitionResult: RecognizedMedicine?
     @State private var showAddMedicine  = false
     @State private var ocrErrorMessage: String?
+    @State private var capturedPhotoData: Data?
 
     var body: some View {
         NavigationStack {
@@ -53,7 +54,6 @@ struct ScanView: View {
                 Spacer()
 
                 VStack(spacing: 12) {
-                    // Primary action — tapping opens the source picker sheet.
                     Button {
                         ocrErrorMessage = nil
                         showSourcePicker = true
@@ -62,7 +62,7 @@ struct ScanView: View {
                             if isRecognizing {
                                 HStack(spacing: 10) {
                                     ProgressView().tint(.white)
-                                    Text("Reading packet…")
+                                    Text("Reading packet...")
                                 }
                             } else {
                                 Label("Scan Medicine", systemImage: "document.viewfinder.fill")
@@ -85,10 +85,10 @@ struct ScanView: View {
                         Button("Choose from Files") { showFilePicker = true }
                     }
 
-                    // Always-visible manual fallback (Golden rule 3)
                     Button {
                         recognitionResult = nil
                         ocrErrorMessage   = nil
+                        capturedPhotoData = nil
                         showAddMedicine   = true
                     } label: {
                         Label("Add Manually Instead", systemImage: "square.and.pencil")
@@ -104,14 +104,12 @@ struct ScanView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
-            // Camera
             .fullScreenCover(isPresented: $showCamera) {
                 CameraView(
                     onCapture: handleCapture,
                     onCancel: { showCamera = false }
                 )
             }
-            // Photo Library — native picker, auto-dismisses on selection
             .photosPicker(
                 isPresented: $showPhotoPicker,
                 selection: $photoPickerItem,
@@ -127,7 +125,6 @@ struct ScanView: View {
                     photoPickerItem = nil
                 }
             }
-            // Files
             .sheet(isPresented: $showFilePicker) {
                 DocumentPickerView(
                     onPick: { image in
@@ -137,9 +134,8 @@ struct ScanView: View {
                     onCancel: { showFilePicker = false }
                 )
             }
-            // OCR result / manual add
             .sheet(isPresented: $showAddMedicine) {
-                AddMedicineView(prefilled: recognitionResult)
+                AddMedicineView(prefilled: recognitionResult, initialPhotoData: capturedPhotoData)
             }
         }
     }
@@ -147,6 +143,7 @@ struct ScanView: View {
     private func handleCapture(_ image: UIImage) {
         showCamera = false
         isRecognizing = true
+        capturedPhotoData = image.jpegData(compressionQuality: 0.8)
 
         Task {
             do {
@@ -154,8 +151,6 @@ struct ScanView: View {
                 recognitionResult = result
                 ocrErrorMessage   = nil
             } catch {
-                // OCR failed — open AddMedicineView empty so the user can still
-                // add manually (Golden rule 3).
                 recognitionResult = nil
                 ocrErrorMessage   = (error as? RecognitionError)?.errorDescription
                     ?? "Couldn't read the packet. Fill in the details below."
@@ -165,8 +160,6 @@ struct ScanView: View {
         }
     }
 }
-
-// MARK: - Camera wrapper
 
 private struct CameraView: UIViewControllerRepresentable {
     var onCapture: (UIImage) -> Void
@@ -205,8 +198,6 @@ private struct CameraView: UIViewControllerRepresentable {
         }
     }
 }
-
-// MARK: - Files / document picker wrapper
 
 private struct DocumentPickerView: UIViewControllerRepresentable {
     var onPick: (UIImage) -> Void

@@ -69,5 +69,4 @@ struct HistoryView: View {
 
 #Preview {
     HistoryView()
-        .modelContainer(PlaceholderData.previewContainer)
 }

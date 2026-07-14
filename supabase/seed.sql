@@ -1,0 +1,3 @@
+-- MedVision backend v1 seed file
+-- Intentionally left free of sample medicine data because the repo treats medicine information as sensitive.
+-- Add local-only development users and records through Supabase Studio or local scripts that are not committed.
