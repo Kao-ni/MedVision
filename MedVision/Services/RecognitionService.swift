@@ -51,6 +51,7 @@ struct RecognitionService {
             throw RecognitionError.invalidImageData
         }
 
+        // Step 1: Extract raw text from the image using the OCR model.
         let rawText: String
         do {
             rawText = try await performOCR(imageData: imageData)
@@ -60,13 +61,24 @@ struct RecognitionService {
             throw RecognitionError.networkError(error)
         }
 
-        let parsed = parseRecognizedMedicine(from: rawText, photoData: imageData)
+        // Step 2: Parse the raw OCR text into structured medicine JSON using a language model.
+        let structuredJSON: String
+        do {
+            structuredJSON = try await structureMedicineData(from: rawText)
+        } catch let error as RecognitionError {
+            throw error
+        } catch {
+            throw RecognitionError.networkError(error)
+        }
+
+        let parsed = parseRecognizedMedicine(from: structuredJSON, photoData: imageData)
         guard !parsed.name.isEmpty else {
             throw RecognitionError.parsingFailed
         }
         return parsed
     }
 
+    // Sends the image to the OCR model and returns the raw extracted text.
     private func performOCR(imageData: Data) async throws -> String {
         let endpoint = PrototypeOCRConfig.baseURL.appendingPathComponent("chat/completions")
         var request = URLRequest(url: endpoint)
@@ -75,22 +87,13 @@ struct RecognitionService {
         request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 60
 
-        let prompt = """
-        Read this medicine packet and return plain text with these fields on separate lines:
-        Name: <medicine name>
-        Dosage: <strength or amount>
-        Form: <pill, liquid, injection, patch, inhaler, or other>
-        Notes: <short usage note if visible>
-        If a field is missing, leave it blank.
-        """
-
         let body: [String: Any] = [
             "model": PrototypeOCRConfig.model,
             "messages": [
                 [
                     "role": "user",
                     "content": [
-                        ["type": "text", "text": prompt],
+                        ["type": "text", "text": "Extract and transcribe all text visible in this image. Return only the extracted text, preserving the original layout."],
                         [
                             "type": "image_url",
                             "image_url": [
@@ -104,23 +107,15 @@ struct RecognitionService {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw RecognitionError.networkError(error)
-        }
+        let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
             throw RecognitionError.badResponse
         }
-
         guard (200...299).contains(http.statusCode) else {
             let message = extractErrorMessage(from: data)
             throw RecognitionError.serviceError(message ?? "OCR request failed with status \(http.statusCode).")
         }
-
         guard let text = extractMessageContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else {
             throw RecognitionError.noTextFound
@@ -129,21 +124,182 @@ struct RecognitionService {
         return text
     }
 
-    private func parseRecognizedMedicine(from rawText: String, photoData: Data) -> RecognizedMedicine {
-        let lines = rawText
-            .components(separatedBy: .newlines)
-            .map { clean($0) }
-            .filter { !$0.isEmpty }
+    // Sends raw OCR text to a language model and returns structured medicine JSON.
+    private func structureMedicineData(from rawText: String) async throws -> String {
+        let endpoint = PrototypeOCRConfig.baseURL.appendingPathComponent("chat/completions")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 60
 
-        guard !lines.isEmpty else {
+        let prompt = """
+        You are the medicine extraction engine for MedTrack, a personal medication-reminder app.
+        You receive raw OCR text from a photo of a medicine packet, blister pack, pharmacy label,
+        or leaflet. Convert it into structured fields for the app's confirm-and-edit screen.
+
+        You are a transcription-and-structuring engine, NOT a clinician. You never diagnose,
+        never recommend or adjust doses, and never add medical information that is not printed
+        on the source text.
+
+        The user ALWAYS reviews and confirms your output before it is saved. Your job is to give
+        them the best pre-filled draft possible — and to be honest about what you couldn't read.
+
+        ====================================================================
+        INPUT
+        ====================================================================
+        Raw OCR text. Assume it is imperfect: character errors (e.g. "5Omg" for "50mg"),
+        missing or out-of-order fragments, mixed languages, and unrelated text (barcodes,
+        manufacturer address, marketing, price stickers). It may not be a medicine at all.
+
+        Correct only obvious OCR artifacts inside values (letter O read as zero in a dose
+        number, "rnl" for "ml"). Never "fix" the text into something it doesn't say.
+
+        ====================================================================
+        SAFETY RULES (override everything else)
+        ====================================================================
+        1. NEVER invent or guess a value the text does not support. A missing value is null,
+           never a plausible-sounding guess.
+        2. Transcribe the dosage EXACTLY as printed. Do not convert units, round, or normalize
+           strength into a value the packet does not show.
+        3. Do not add dosing advice, indications, or warnings from outside knowledge. Only
+           restate what the packaging/leaflet text says.
+        4. If the name, dosage, or when-to-take information is unclear, partial, or ambiguous,
+           set confidence to "low" for that field and add a warning — do not silently pick one
+           interpretation.
+        5. Never place personal information (patient name, prescriber, Rx number) into any
+           output field. If present in the text, ignore it.
+
+        ====================================================================
+        FIELDS TO EXTRACT
+        ====================================================================
+        - name          The medicine name as printed. Prefer the brand/product name; if only an
+                        active ingredient is shown, use that. If both are clearly printed, use
+                        "Brand (ingredient)". null if unreadable.
+
+        - dosage        Strength per unit, verbatim from the packet, e.g. "500 mg", "5 mg/ml",
+                        "20 mg". null if not printed or unreadable.
+
+        - form          One of: "pill", "capsule", "liquid", "injection", "drops", "cream",
+                        "inhaler", "patch", "powder", "other". Infer from words like "tablets",
+                        "syrup", "solution". null if undeterminable.
+
+        - when_to_take  The dosing schedule as stated on the packet/label, normalized into:
+                        {
+                          "raw":            the schedule text verbatim, or null,
+                          "times_per_day":  integer or null,
+                          "time_slots":     subset of ["morning","midday","evening","night"]
+                                            ONLY when the text implies them, else [],
+                          "with_food":      "before" | "with" | "after" | null,
+                          "as_needed":      true | false
+                        }
+                        Normalize common phrasings: "twice daily"/"BID"/"2x a day" ->
+                        times_per_day 2; "every 8 hours" -> times_per_day 3; "at bedtime" ->
+                        time_slots ["night"]. Do NOT invent clock times or slots the text
+                        doesn't imply.
+                        If no schedule is printed, leave raw null and times_per_day null.
+
+        - notes         Short, useful text taken from the packaging only: key warnings,
+                        storage instructions, duration, or expiry if legible. Plain wording,
+                        one line per item joined with "; ". null if nothing useful is printed.
+
+        ====================================================================
+        CONFIDENCE & WARNINGS
+        ====================================================================
+        - confidence: per-field "high" | "medium" | "low" for name, dosage, form, when_to_take.
+        - warnings: array of short strings for the app to surface on the confirm screen.
+
+        ====================================================================
+        EDGE CASES
+        ====================================================================
+        - Not a medicine: set "is_medicine": false, all fields null, one warning describing the problem.
+        - Multiple medicines: extract the most prominent one, add a warning.
+
+        ====================================================================
+        OUTPUT
+        ====================================================================
+        Respond with STRICT JSON ONLY — no markdown, no code fences, no commentary.
+        Always include every key. Use null / [] for unknowns.
+
+        {
+          "is_medicine": true,
+          "name": null,
+          "dosage": null,
+          "form": null,
+          "when_to_take": {
+            "raw": null,
+            "times_per_day": null,
+            "time_slots": [],
+            "with_food": null,
+            "as_needed": false
+          },
+          "notes": null,
+          "confidence": {
+            "name": "low",
+            "dosage": "low",
+            "form": "low",
+            "when_to_take": "low"
+          },
+          "warnings": []
+        }
+
+        ====================================================================
+        RAW OCR TEXT TO STRUCTURE
+        ====================================================================
+        \(rawText)
+        """
+
+        let body: [String: Any] = [
+            "model": PrototypeOCRConfig.parseModel,
+            "messages": [
+                [
+                    "role": "system",
+                    "content": "You are a medicine label reader for a medication reminder app. Follow the user's instructions exactly and respond with strict JSON only."
+                ],
+                [
+                    "role": "user",
+                    "content": prompt
+                ]
+            ]
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw RecognitionError.badResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let message = extractErrorMessage(from: data)
+            throw RecognitionError.serviceError(message ?? "Parse request failed with status \(http.statusCode).")
+        }
+        guard let text = extractMessageContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else {
+            throw RecognitionError.parsingFailed
+        }
+
+        return text
+    }
+
+    private func parseRecognizedMedicine(from rawText: String, photoData: Data) -> RecognizedMedicine {
+        // Strip markdown code fences some models wrap around JSON
+        let jsonString = rawText
+            .replacingOccurrences(of: #"^```json\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"^```\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\s*```$"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let data = jsonString.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return RecognizedMedicine(photoData: photoData)
         }
 
-        let name = fieldValue(prefix: "name", in: lines) ?? fallbackName(from: lines)
-        let dosage = fieldValue(prefix: "dosage", in: lines) ?? extractDosage(from: rawText) ?? ""
-        let notes = fieldValue(prefix: "notes", in: lines) ?? ""
-        let explicitForm = fieldValue(prefix: "form", in: lines)
-        let form = mapForm(explicitForm ?? rawText)
+        let name = json["name"] as? String ?? ""
+        let dosage = json["dosage"] as? String ?? ""
+        let notes = json["notes"] as? String ?? ""
+        let formString = json["form"] as? String ?? ""
+        let form = mapForm(formString)
 
         return RecognizedMedicine(
             name: name,
@@ -154,68 +310,15 @@ struct RecognitionService {
         )
     }
 
-    private func fieldValue(prefix: String, in lines: [String]) -> String? {
-        let normalizedPrefix = prefix.lowercased() + ":"
-        for line in lines {
-            let lower = line.lowercased()
-            guard lower.hasPrefix(normalizedPrefix) else { continue }
-            let value = line.dropFirst(normalizedPrefix.count)
-            let cleaned = clean(String(value))
-            if !cleaned.isEmpty {
-                return cleaned
-            }
-        }
-        return nil
-    }
-
-    private func fallbackName(from lines: [String]) -> String {
-        let first = lines.first ?? ""
-        let withoutDose = extractDosage(from: first).map { first.replacingOccurrences(of: $0, with: "") } ?? first
-        return clean(withoutDose.replacingOccurrences(of: "tablet", with: "", options: .caseInsensitive)
-            .replacingOccurrences(of: "tablets", with: "", options: .caseInsensitive)
-            .replacingOccurrences(of: "capsule", with: "", options: .caseInsensitive)
-            .replacingOccurrences(of: "capsules", with: "", options: .caseInsensitive))
-    }
-
-    private func extractDosage(from text: String) -> String? {
-        let pattern = #"\b\d+(?:\.\d+)?\s?(?:mg|mcg|g|ml|iu)\b"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
-            return nil
-        }
-        let range = NSRange(text.startIndex..., in: text)
-        guard let match = regex.firstMatch(in: text, options: [], range: range),
-              let matchRange = Range(match.range, in: text) else {
-            return nil
-        }
-        return String(text[matchRange])
-    }
-
     private func mapForm(_ text: String) -> MedicineForm {
-        let lower = text.lowercased()
-        if lower.contains("tablet") || lower.contains("pill") || lower.contains("capsule") || lower.contains("caplet") {
-            return .pill
+        switch text.lowercased() {
+        case "pill", "tablet", "capsule": return .pill
+        case "liquid", "syrup", "suspension", "drops": return .liquid
+        case "injection": return .injection
+        case "patch": return .patch
+        case "inhaler": return .inhaler
+        default: return .other
         }
-        if lower.contains("liquid") || lower.contains("syrup") || lower.contains("suspension") {
-            return .liquid
-        }
-        if lower.contains("inject") || lower.contains("vial") {
-            return .injection
-        }
-        if lower.contains("patch") {
-            return .patch
-        }
-        if lower.contains("inhaler") || lower.contains("puff") {
-            return .inhaler
-        }
-        return .other
-    }
-
-    private func clean(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "*", with: "")
-            .replacingOccurrences(of: "`", with: "")
-            .replacingOccurrences(of: "- ", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func extractMessageContent(from data: Data) -> String? {
