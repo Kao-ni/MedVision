@@ -47,7 +47,7 @@ struct RecognitionService {
         guard PrototypeOCRConfig.isConfigured else {
             throw RecognitionError.notConfigured
         }
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        guard let imageData = image.jpegData(compressionQuality: 0.92) else {
             throw RecognitionError.invalidImageData
         }
 
@@ -93,7 +93,7 @@ struct RecognitionService {
                 [
                     "role": "user",
                     "content": [
-                        ["type": "text", "text": "Extract and transcribe all text visible in this image. Return only the extracted text, preserving the original layout."],
+                        ["type": "text", "text": "Extract and transcribe all text visible in this image. The text may be in Thai, English, or a mix of both. Carefully preserve every Thai character, vowel mark, and tone mark exactly as it appears — do not romanize or transliterate Thai. Return only the extracted text, preserving the original layout."],
                         [
                             "type": "image_url",
                             "image_url": [
@@ -148,9 +148,11 @@ struct RecognitionService {
         ====================================================================
         INPUT
         ====================================================================
-        Raw OCR text. Assume it is imperfect: character errors (e.g. "5Omg" for "50mg"),
-        missing or out-of-order fragments, mixed languages, and unrelated text (barcodes,
-        manufacturer address, marketing, price stickers). It may not be a medicine at all.
+        Raw OCR text. The source label may be in Thai, English, or both — Thai is common
+        for pharmacy-dispensed medicine in Thailand. Assume the text is imperfect: character
+        errors (e.g. "5Omg" for "50mg"), missing or out-of-order fragments, mixed languages,
+        and unrelated text (barcodes, manufacturer address, marketing, price stickers).
+        It may not be a medicine at all.
 
         Correct only obvious OCR artifacts inside values (letter O read as zero in a dose
         number, "rnl" for "ml"). Never "fix" the text into something it doesn't say.
@@ -182,7 +184,10 @@ struct RecognitionService {
 
         - form          One of: "pill", "capsule", "liquid", "injection", "drops", "cream",
                         "inhaler", "patch", "powder", "other". Infer from words like "tablets",
-                        "syrup", "solution". null if undeterminable.
+                        "syrup", "solution". Also recognize Thai terms: เม็ด/เม็ดฟู้ด/เม็ดฟี้ = pill,
+                        แคปซูล = capsule, ยาน้ำ/น้ำเชื่อม/ยาน้ำเชื่อม = liquid,
+                        ยาฉีด = injection, ยาหยอด = drops, ยาทา/ครีม = cream,
+                        ยาพ่น = inhaler, ยาผง = powder. null if undeterminable.
 
         - when_to_take  The dosing schedule as stated on the packet/label, normalized into:
                         {
@@ -197,6 +202,12 @@ struct RecognitionService {
                         times_per_day 2; "every 8 hours" -> times_per_day 3; "at bedtime" ->
                         time_slots ["night"]. Do NOT invent clock times or slots the text
                         doesn't imply.
+                        Also normalize Thai phrasings:
+                          วันละ 1/2/3/4 ครั้ง -> times_per_day 1/2/3/4
+                          ทุก 4 ชั่วโมง -> times_per_day 6; ทุก 6 ชั่วโมง -> 4; ทุก 8 ชั่วโมง -> 3; ทุก 12 ชั่วโมง -> 2
+                          เช้า -> time_slots ["morning"]; กลางวัน -> ["midday"]; เย็น -> ["evening"]; ก่อนนอน -> ["night"]
+                          ก่อนอาหาร -> with_food "before"; หลังอาหาร -> with_food "after"; พร้อมอาหาร -> with_food "with"
+                          เมื่อมีอาการ/เมื่อปวด/เมื่อจำเป็น -> as_needed true
                         If no schedule is printed, leave raw null and times_per_day null.
 
         - notes         Short, useful text taken from the packaging only: key warnings,
@@ -254,7 +265,7 @@ struct RecognitionService {
             "messages": [
                 [
                     "role": "system",
-                    "content": "You are a medicine label reader for a medication reminder app. Follow the user's instructions exactly and respond with strict JSON only."
+                    "content": "You are a medicine label reader for a medication reminder app used in Thailand. Labels may be in Thai, English, or both. You are fluent in Thai medical terminology. Follow the user's instructions exactly and respond with strict JSON only."
                 ],
                 [
                     "role": "user",
