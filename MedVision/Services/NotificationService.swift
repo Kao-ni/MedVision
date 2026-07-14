@@ -1,9 +1,6 @@
 import UserNotifications
 import Foundation
 
-/// Schedules and cancels local dose-reminder notifications.
-/// Uses medicine.notificationTag as a stable prefix so all notifications
-/// for a given medicine can be found and replaced as a group.
 @MainActor
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 

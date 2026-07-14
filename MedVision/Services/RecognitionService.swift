@@ -5,7 +5,7 @@ import Foundation
 struct RecognizedMedicine {
     var name: String = ""
     var dosage: String = ""
-    var form: MedicineForm = .pill
+    var form: MedicineForm = .tablet
     var notes: String = ""
     var photoData: Data? = nil
 }
@@ -47,7 +47,8 @@ struct RecognitionService {
         guard PrototypeOCRConfig.isConfigured else {
             throw RecognitionError.notConfigured
         }
-        guard let imageData = image.jpegData(compressionQuality: 0.92) else {
+        let resized = image.resized(toMaxDimension: 1920)
+        guard let imageData = resized.jpegData(compressionQuality: 0.80) else {
             throw RecognitionError.invalidImageData
         }
 
@@ -85,7 +86,7 @@ struct RecognitionService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 60
+        request.timeoutInterval = 120
 
         let body: [String: Any] = [
             "model": PrototypeOCRConfig.model,
@@ -131,7 +132,7 @@ struct RecognitionService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 60
+        request.timeoutInterval = 120
 
         let prompt = """
         You are the medicine extraction engine for MedTrack, a personal medication-reminder app.
@@ -182,7 +183,7 @@ struct RecognitionService {
         - dosage        Strength per unit, verbatim from the packet, e.g. "500 mg", "5 mg/ml",
                         "20 mg". null if not printed or unreadable.
 
-        - form          One of: "pill", "capsule", "liquid", "injection", "drops", "cream",
+        - form          One of: "tablet", "capsule", "liquid", "injection", "drops", "cream",
                         "inhaler", "patch", "powder", "other". Infer from words like "tablets",
                         "syrup", "solution". Also recognize Thai terms: เม็ด/เม็ดฟู้ด/เม็ดฟี้ = pill,
                         แคปซูล = capsule, ยาน้ำ/น้ำเชื่อม/ยาน้ำเชื่อม = liquid,
@@ -323,7 +324,8 @@ struct RecognitionService {
 
     private func mapForm(_ text: String) -> MedicineForm {
         switch text.lowercased() {
-        case "pill", "tablet", "capsule": return .pill
+        case "tablet", "pill": return .tablet
+        case "capsule": return .capsule
         case "liquid", "syrup", "suspension", "drops": return .liquid
         case "injection": return .injection
         case "patch": return .patch
@@ -368,5 +370,16 @@ struct RecognitionService {
         }
 
         return String(data: data, encoding: .utf8)
+    }
+}
+
+private extension UIImage {
+    func resized(toMaxDimension maxDim: CGFloat) -> UIImage {
+        let longestSide = max(size.width, size.height)
+        guard longestSide > maxDim else { return self }
+        let scale = maxDim / longestSide
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in draw(in: CGRect(origin: .zero, size: newSize)) }
     }
 }

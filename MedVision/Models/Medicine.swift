@@ -2,12 +2,19 @@ import SwiftData
 import Foundation
 
 enum MedicineForm: String, CaseIterable, Codable {
-    case pill      = "Pill"
+    case tablet    = "Tablet"
+    case capsule   = "Capsule"
     case liquid    = "Liquid"
     case injection = "Injection"
     case patch     = "Patch"
     case inhaler   = "Inhaler"
     case other     = "Other"
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        // "Pill" was the old raw value before tablet/capsule split
+        self = MedicineForm(rawValue: raw) ?? (raw == "Pill" ? .tablet : .other)
+    }
 }
 
 @Model
@@ -32,7 +39,7 @@ class Medicine {
     init(
         name: String,
         dosage: String = "",
-        form: MedicineForm = .pill,
+        form: MedicineForm = .tablet,
         notes: String = "",
         photoData: Data? = nil,
         scheduledTimes: [Date] = [],

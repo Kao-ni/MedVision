@@ -53,7 +53,7 @@ struct AddMedicineView: View {
         } else {
             _name          = State(initialValue: "")
             _dosage        = State(initialValue: "")
-            _form          = State(initialValue: .pill)
+            _form          = State(initialValue: .tablet)
             _notes         = State(initialValue: "")
             _scheduledTimes = State(initialValue: [])
             _frequencyNote = State(initialValue: "")
