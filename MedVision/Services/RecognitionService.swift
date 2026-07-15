@@ -47,7 +47,7 @@ struct RecognitionService {
         guard PrototypeOCRConfig.isConfigured else {
             throw RecognitionError.notConfigured
         }
-        let resized = image.resized(toMaxDimension: 1920)
+        let resized = image.resized(toMaxDimension: 1280)
         guard let imageData = resized.jpegData(compressionQuality: 0.80) else {
             throw RecognitionError.invalidImageData
         }
@@ -263,6 +263,7 @@ struct RecognitionService {
 
         let body: [String: Any] = [
             "model": PrototypeOCRConfig.parseModel,
+            "max_tokens": 600,
             "messages": [
                 [
                     "role": "system",
