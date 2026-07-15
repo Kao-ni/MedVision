@@ -13,6 +13,7 @@ struct RecognizedMedicine {
 enum RecognitionError: LocalizedError {
     case notConfigured
     case invalidImageData
+    case imagePreprocessingFailed(String)
     case networkError(Error)
     case badResponse
     case serviceError(String)
@@ -25,6 +26,8 @@ enum RecognitionError: LocalizedError {
             return "Add your Typhoon API key in PrototypeOCRConfig.swift first."
         case .invalidImageData:
             return "Couldn't prepare the photo for OCR."
+        case .imagePreprocessingFailed(let message):
+            return "Couldn't straighten the photo: \(message)"
         case .networkError(let e):
             return "Network error: \(e.localizedDescription)"
         case .badResponse:
@@ -48,7 +51,13 @@ struct RecognitionService {
             throw RecognitionError.notConfigured
         }
         let resized = image.resized(toMaxDimension: 1920)
-        guard let imageData = resized.jpegData(compressionQuality: 0.80) else {
+        let corrected: UIImage
+        do {
+            corrected = try await DewarpService.shared.dewarp(resized)
+        } catch {
+            throw RecognitionError.imagePreprocessingFailed(error.localizedDescription)
+        }
+        guard let imageData = corrected.jpegData(compressionQuality: 0.80) else {
             throw RecognitionError.invalidImageData
         }
 
