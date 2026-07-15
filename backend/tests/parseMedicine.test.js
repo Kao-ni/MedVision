@@ -28,3 +28,69 @@ test("preserves warnings when OCR text is weak", () => {
   assert.ok(result.warnings.includes("dosage_not_found"));
   assert.ok(result.warnings.includes("form_not_inferred"));
 });
+
+test("parses structured JSON medicine output", () => {
+  const result = parseRecognizedMedicine(JSON.stringify({
+    is_medicine: true,
+    name: "Paracetamol",
+    dosage: "500 mg",
+    form: "tablet",
+    notes: "Take after food",
+    warnings: ["check label"]
+  }));
+
+  assert.equal(result.name, "Paracetamol");
+  assert.equal(result.dosage, "500 mg");
+  assert.equal(result.form, "pill");
+  assert.equal(result.notes, "Take after food");
+  assert.equal(result.confidence, "medium");
+  assert.deepEqual(result.warnings, ["check label"]);
+});
+
+test("recovers medicine fields from nested structured JSON", () => {
+  const result = parseRecognizedMedicine(JSON.stringify({
+    is_medicine: true,
+    medicine: {
+      brand_name: "Tylenol",
+      active_ingredient: "Paracetamol"
+    },
+    dosage_form: "tablet",
+    strength: "500 mg",
+    warning: "Take after food"
+  }));
+
+  assert.equal(result.name, "Tylenol");
+  assert.equal(result.dosage, "500 mg");
+  assert.equal(result.form, "pill");
+  assert.equal(result.notes, "Take after food");
+});
+
+test("does not treat confidence fields as medicine fields", () => {
+  const result = parseRecognizedMedicine(JSON.stringify({
+    is_medicine: true,
+    confidence: {
+      name: "low",
+      dosage: "low"
+    },
+    medicine: {
+      brand_name: "Amoxicillin"
+    },
+    dosage_form: "capsule"
+  }));
+
+  assert.equal(result.name, "Amoxicillin");
+  assert.equal(result.dosage, "");
+  assert.equal(result.form, "pill");
+});
+
+test("marks non-medicine results explicitly", () => {
+  const result = parseRecognizedMedicine(JSON.stringify({
+    is_medicine: false,
+    warnings: ["looks like a receipt"]
+  }));
+
+  assert.equal(result.name, "");
+  assert.equal(result.form, "other");
+  assert.deepEqual(result.warnings, ["not_medicine"]);
+  assert.equal(result.confidence, "low");
+});
