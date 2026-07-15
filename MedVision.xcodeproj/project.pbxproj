@@ -8,15 +8,30 @@
 
 /* Begin PBXBuildFile section */
 		32D028833005D391007D0B0F /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 32D028823005D391007D0B0F /* PythonKit */; };
+		A1B2C3D43005E001007D0B0F /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D53005E001007D0B0F /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		327E5EB83000855600B3582A /* MedVision.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MedVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A1B2C3D73005E001007D0B0F /* Exceptions for "MedVision" folder in "MedVision" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				MedVision.entitlements,
+			);
+			target = 327E5EB73000855600B3582A /* MedVision */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		327E5EBA3000855600B3582A /* MedVision */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A1B2C3D73005E001007D0B0F /* Exceptions for "MedVision" folder in "MedVision" target */,
+			);
 			path = MedVision;
 			sourceTree = "<group>";
 		};
@@ -28,6 +43,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				32D028833005D391007D0B0F /* PythonKit in Frameworks */,
+				A1B2C3D43005E001007D0B0F /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +87,7 @@
 			name = MedVision;
 			packageProductDependencies = (
 				32D028823005D391007D0B0F /* PythonKit */,
+				A1B2C3D53005E001007D0B0F /* Supabase */,
 			);
 			productName = MedVision;
 			productReference = 327E5EB83000855600B3582A /* MedVision.app */;
@@ -102,6 +119,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				32D028813005D391007D0B0F /* XCRemoteSwiftPackageReference "PythonKit" */,
+				A1B2C3D63005E001007D0B0F /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 327E5EB93000855600B3582A /* Products */;
@@ -258,11 +276,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MedVision/MedVision.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = LVD57ZXZR5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MedVision/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MedVision uses the camera to scan medication labels";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "MedVision accesses your photo library to scan medication labels from existing photos\n";
@@ -293,11 +313,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = MedVision/MedVision.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = LVD57ZXZR5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MedVision/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MedVision uses the camera to scan medication labels";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "MedVision accesses your photo library to scan medication labels from existing photos\n";
@@ -355,6 +377,14 @@
 				kind = branch;
 			};
 		};
+		A1B2C3D63005E001007D0B0F /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.29.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -362,6 +392,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 32D028813005D391007D0B0F /* XCRemoteSwiftPackageReference "PythonKit" */;
 			productName = PythonKit;
+		};
+		A1B2C3D53005E001007D0B0F /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D63005E001007D0B0F /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

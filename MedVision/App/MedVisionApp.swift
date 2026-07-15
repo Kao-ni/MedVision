@@ -5,6 +5,7 @@ import PythonKit
 @main
 struct MedVisionApp: App {
     let container: ModelContainer
+    @State private var authService = AuthService()
 
     init() {
         MedVisionApp.configurePython()
@@ -35,6 +36,10 @@ struct MedVisionApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(authService)
+                .onOpenURL { url in
+                    authService.handleOpenURL(url)
+                }
         }
         .modelContainer(container)
     }

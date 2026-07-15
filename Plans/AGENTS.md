@@ -35,7 +35,8 @@ The core loop is: **photograph medicine -> confirm extracted info -> set schedul
 
 - **App framework:** native iOS with SwiftUI and SwiftData.
 - **Backend / data:** Supabase Auth, Postgres, Storage, RLS, and Edge Functions.
-- **Recognition:** Typhoon OCR, called only through the backend proxy.
+- **iOS Auth:** Supabase Auth via `supabase-swift`. The app holds only the **anon/publishable** key + project URL (gitignored `SupabaseSecrets.swift`). Never put the service role key in the client. Session tokens persist in Keychain so users stay signed in until Sign Out. Setup steps: `MedVision/Config/AUTH_SETUP.md`.
+- **Recognition:** Typhoon OCR, called only through the backend proxy (prototype still calls Typhoon from the client — migrate later).
 - **Drug info:** public drug database API proxied through the backend.
 
 When you introduce or change any of the above, update this file in the same change.

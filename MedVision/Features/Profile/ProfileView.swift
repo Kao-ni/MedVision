@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ProfileView: View {
+    @Environment(AuthService.self) private var auth
     @AppStorage("profile_firstName") private var firstName = "First Name"
     @AppStorage("profile_lastName") private var lastName = "Last Name"
     @AppStorage("profile_gender") private var gender = "Male"
@@ -10,10 +11,15 @@ struct ProfileView: View {
     @AppStorage("profile_allergies") private var allergies = "None"
     @AppStorage("profile_conditions") private var conditions = "None"
     @AppStorage("profile_medications") private var medications = "None"
-    @AppStorage("profile_email") private var email = ""
     @AppStorage("profile_phone") private var phone = ""
 
     @State private var showEditSheet = false
+    @State private var isSigningOut = false
+    @State private var signOutError: String?
+
+    private var accountEmail: String {
+        auth.userEmail ?? "—"
+    }
 
     private var birthdayDisplay: String {
         let formatter = DateFormatter()
@@ -41,10 +47,10 @@ struct ProfileView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             VStack(alignment: .leading, spacing: -6) {
-                                Text(firstName)
+                                Text(displayFirstName)
                                     .font(.title)
                                     .fontWeight(.bold)
-                                Text(lastName)
+                                Text(displayLastName)
                                     .font(.title)
                                     .fontWeight(.bold)
                             }
@@ -69,9 +75,37 @@ struct ProfileView: View {
                     ])
 
                     infoCard(title: "Account", items: [
-                        ("envelope.fill", Color.orange, "Email", email.isEmpty ? "—" : email),
+                        ("envelope.fill", Color.orange, "Email", accountEmail),
                         ("phone.fill", Color.green, "Phone", phone.isEmpty ? "—" : phone),
                     ])
+
+                    if let signOutError {
+                        Text(signOutError)
+                            .font(.body)
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 20)
+                    }
+
+                    Button {
+                        Task { await signOut() }
+                    } label: {
+                        ZStack {
+                            Text("Sign Out")
+                                .font(.title3)
+                                .fontWeight(.semibold)
+                                .opacity(isSigningOut ? 0 : 1)
+                            if isSigningOut {
+                                ProgressView()
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 56)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .disabled(isSigningOut)
+                    .padding(.horizontal, 20)
+                    .accessibilityLabel("Sign Out")
                 }
                 .padding(.bottom, 32)
             }
@@ -94,10 +128,54 @@ struct ProfileView: View {
                     allergies: $allergies,
                     conditions: $conditions,
                     medications: $medications,
-                    email: $email,
-                    phone: $phone
+                    phone: $phone,
+                    accountEmail: accountEmail
                 )
             }
+            .onAppear {
+                applyAuthNameIfNeeded()
+            }
+        }
+    }
+
+    private var displayFirstName: String {
+        if firstName != "First Name" { return firstName }
+        if let full = auth.userDisplayName {
+            return full.split(separator: " ").first.map(String.init) ?? firstName
+        }
+        return firstName
+    }
+
+    private var displayLastName: String {
+        if lastName != "Last Name" { return lastName }
+        if let full = auth.userDisplayName {
+            let parts = full.split(separator: " ")
+            if parts.count > 1 {
+                return parts.dropFirst().joined(separator: " ")
+            }
+        }
+        return lastName
+    }
+
+    private func applyAuthNameIfNeeded() {
+        guard let full = auth.userDisplayName, !full.isEmpty else { return }
+        let parts = full.split(separator: " ").map(String.init)
+        if firstName == "First Name", let given = parts.first {
+            firstName = given
+        }
+        if lastName == "Last Name", parts.count > 1 {
+            lastName = parts.dropFirst().joined(separator: " ")
+        }
+    }
+
+    private func signOut() async {
+        signOutError = nil
+        isSigningOut = true
+        defer { isSigningOut = false }
+        do {
+            try await auth.signOut()
+        } catch {
+            signOutError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
@@ -172,8 +250,8 @@ struct EditProfileSheet: View {
     @Binding var allergies: String
     @Binding var conditions: String
     @Binding var medications: String
-    @Binding var email: String
     @Binding var phone: String
+    let accountEmail: String
 
     @Environment(\.dismiss) private var dismiss
 
@@ -232,10 +310,7 @@ struct EditProfileSheet: View {
                 }
 
                 Section("Contact") {
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                    LabeledContent("Email", value: accountEmail)
                     TextField("Phone", text: $phone)
                         .keyboardType(.phonePad)
                 }
@@ -254,4 +329,5 @@ struct EditProfileSheet: View {
 
 #Preview {
     ProfileView()
+        .environment(AuthService())
 }
