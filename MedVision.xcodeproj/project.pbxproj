@@ -7,16 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2254F94EA63949CDAC9F8AE7 /* libPods-MedVision.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7D1692FC2005E12656405114 /* libPods-MedVision.a */; };
 		32D028833005D391007D0B0F /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 32D028823005D391007D0B0F /* PythonKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		32266D5438B037FD64BEAC8C /* Pods-MedVision.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MedVision.release.xcconfig"; path = "Target Support Files/Pods-MedVision/Pods-MedVision.release.xcconfig"; sourceTree = "<group>"; };
 		327E5EB83000855600B3582A /* MedVision.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MedVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		612A9E5E342C79C4BB641D1D /* Pods-MedVision.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MedVision.debug.xcconfig"; path = "Target Support Files/Pods-MedVision/Pods-MedVision.debug.xcconfig"; sourceTree = "<group>"; };
+		7D1692FC2005E12656405114 /* libPods-MedVision.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-MedVision.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		327E5EBA3000855600B3582A /* MedVision */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = MedVision;
 			sourceTree = "<group>";
 		};
@@ -28,6 +34,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				32D028833005D391007D0B0F /* PythonKit in Frameworks */,
+				2254F94EA63949CDAC9F8AE7 /* libPods-MedVision.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -39,6 +46,8 @@
 			children = (
 				327E5EB93000855600B3582A /* Products */,
 				327E5EBA3000855600B3582A /* MedVision */,
+				FBA019299BA31D32C6AF1A24 /* Pods */,
+				834AFFBD3C5C4C4838C11046 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -50,6 +59,24 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		834AFFBD3C5C4C4838C11046 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7D1692FC2005E12656405114 /* libPods-MedVision.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		FBA019299BA31D32C6AF1A24 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				612A9E5E342C79C4BB641D1D /* Pods-MedVision.debug.xcconfig */,
+				32266D5438B037FD64BEAC8C /* Pods-MedVision.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -57,9 +84,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 327E5EC33000855700B3582A /* Build configuration list for PBXNativeTarget "MedVision" */;
 			buildPhases = (
+				982438AABED4681B83631CAA /* [CP] Check Pods Manifest.lock */,
 				327E5EB43000855600B3582A /* Sources */,
 				327E5EB53000855600B3582A /* Frameworks */,
 				327E5EB63000855600B3582A /* Resources */,
+				14E51A9CAA90FBED1C5AC262 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -123,6 +152,48 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		14E51A9CAA90FBED1C5AC262 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-MedVision/Pods-MedVision-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-MedVision/Pods-MedVision-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MedVision/Pods-MedVision-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		982438AABED4681B83631CAA /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-MedVision-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		327E5EB43000855600B3582A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -171,7 +242,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -234,7 +305,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -255,6 +326,7 @@
 		};
 		327E5EC43000855700B3582A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 612A9E5E342C79C4BB641D1D /* Pods-MedVision.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -290,6 +362,7 @@
 		};
 		327E5EC53000855700B3582A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 32266D5438B037FD64BEAC8C /* Pods-MedVision.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
