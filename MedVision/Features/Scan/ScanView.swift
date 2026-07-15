@@ -1,5 +1,4 @@
 @preconcurrency import AVFoundation
-import CoreMotion
 import PhotosUI
 import SwiftUI
 import Vision
@@ -7,6 +6,7 @@ import Combine
 
 struct ScanView: View {
     @Binding var showCamera: Bool
+    let onClose: () -> Void
 
     @State private var isRecognizing = false
     @State private var recognitionResult: RecognizedMedicine?
@@ -20,8 +20,8 @@ struct ScanView: View {
         Group {
             if showCamera {
                 ScannerFullScreenView(
-                    isPresented: $showCamera,
                     isBusy: isRecognizing,
+                    onClose: onClose,
                     onCapture: handleCapture,
                     onGalleryTap: { showPhotoPicker = true }
                 )
@@ -84,8 +84,8 @@ struct ScanView: View {
 }
 
 private struct ScannerFullScreenView: View {
-    @Binding var isPresented: Bool
     let isBusy: Bool
+    let onClose: () -> Void
     let onCapture: (UIImage) -> Void
     let onGalleryTap: () -> Void
 
@@ -147,7 +147,7 @@ private struct ScannerFullScreenView: View {
                     size: 52,
                     isActive: false,
                     isDisabled: isBusy,
-                    action: { isPresented = false }
+                    action: onClose
                 )
 
             Spacer()
@@ -214,6 +214,7 @@ private struct ScannerFullScreenView: View {
             return CGSize(width: size.width * 0.75, height: size.height * 0.18)
         }
     }
+
 }
 
 private enum ScannerMode: String, CaseIterable {
@@ -262,6 +263,8 @@ private enum TipState: Equatable {
     case lighting
     case distance
     case blur
+    case permissionDenied
+    case cameraUnavailable
     case ready
 }
 
@@ -280,17 +283,10 @@ private final class ScannerCameraController: NSObject, ObservableObject {
 
     private let sessionQueue = DispatchQueue(label: "medvision.scanner.session")
     private let analysisQueue = DispatchQueue(label: "medvision.scanner.analysis", qos: .userInitiated)
-    private let motionQueue: OperationQueue = {
-        let queue = OperationQueue()
-        queue.name = "medvision.scanner.motion"
-        queue.qualityOfService = .userInitiated
-        return queue
-    }()
 
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let metadataOutput = AVCaptureMetadataOutput()
-    private let motionManager = CMMotionManager()
     private let photoDelegate = ScannerPhotoDelegate()
 
     private var isConfigured = false
@@ -323,26 +319,24 @@ private final class ScannerCameraController: NSObject, ObservableObject {
 
             switch AVCaptureDevice.authorizationStatus(for: .video) {
             case .authorized:
-                self.configureIfNeeded()
+                guard self.configureIfNeeded() else { return }
                 if !self.session.isRunning {
                     self.session.startRunning()
                 }
-                self.startMotion()
             case .notDetermined:
                 AVCaptureDevice.requestAccess(for: .video) { granted in
                     guard granted else { return }
                     self.sessionQueue.async { [weak self] in
                         guard let self else { return }
-                        self.configureIfNeeded()
+                        guard self.configureIfNeeded() else { return }
                         if !self.session.isRunning {
                             self.session.startRunning()
                         }
-                        self.startMotion()
                     }
                 }
             default:
                 DispatchQueue.main.async {
-                    self.tipState = .lighting
+                    self.tipState = .permissionDenied
                 }
             }
         }
@@ -355,7 +349,6 @@ private final class ScannerCameraController: NSObject, ObservableObject {
                 self.session.stopRunning()
             }
         }
-        stopMotion()
         feedbackTask?.cancel()
         feedbackTask = nil
         DispatchQueue.main.async {
@@ -409,6 +402,12 @@ private final class ScannerCameraController: NSObject, ObservableObject {
 
     func capturePhoto() {
         guard !isCapturing else { return }
+        guard isConfigured, session.isRunning else {
+            DispatchQueue.main.async {
+                self.tipState = .cameraUnavailable
+            }
+            return
+        }
         isCapturing = true
         showCaptureFeedback()
 
@@ -441,6 +440,10 @@ private final class ScannerCameraController: NSObject, ObservableObject {
             return "Move closer - about 20 cm works best"
         case .blur:
             return "Hold still - camera is focusing..."
+        case .permissionDenied:
+            return "Camera access is blocked. Enable it in Settings to scan."
+        case .cameraUnavailable:
+            return "No camera is available on this device."
         case .ready:
             return "Looking good - tap the shutter to scan"
         }
@@ -453,12 +456,14 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         case .lighting: return .yellow
         case .distance: return .cyan
         case .blur: return .red
+        case .permissionDenied: return .orange
+        case .cameraUnavailable: return .orange
         case .ready: return .green
         }
     }
 
-    private func configureIfNeeded() {
-        guard !isConfigured else { return }
+    private func configureIfNeeded() -> Bool {
+        guard !isConfigured else { return true }
 
         session.beginConfiguration()
         session.sessionPreset = currentMode == .label ? .photo : .high
@@ -467,7 +472,10 @@ private final class ScannerCameraController: NSObject, ObservableObject {
               let input = try? AVCaptureDeviceInput(device: device),
               session.canAddInput(input) else {
             session.commitConfiguration()
-            return
+            DispatchQueue.main.async {
+                self.tipState = .cameraUnavailable
+            }
+            return false
         }
 
         currentDevice = device
@@ -496,21 +504,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
 
         session.commitConfiguration()
         isConfigured = true
-    }
-
-    private func startMotion() {
-        guard motionManager.isDeviceMotionAvailable else { return }
-        motionManager.deviceMotionUpdateInterval = 1.0 / 15.0
-        motionManager.startDeviceMotionUpdates(using: .xArbitraryCorrectedZVertical, to: motionQueue) { [weak self] motion, _ in
-            guard let self, let motion else { return }
-            let pitch = abs(motion.attitude.pitch)
-            self.evaluateTip(pitch: pitch)
-        }
-    }
-
-    private func stopMotion() {
-        guard motionManager.isDeviceMotionActive else { return }
-        motionManager.stopDeviceMotionUpdates()
+        return true
     }
 
     private func showCaptureFeedback() {
@@ -542,12 +536,10 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         }
     }
 
-    private func evaluateTip(pitch: Double) {
+    private func evaluateTip() {
         let next: TipState
 
-        if pitch > 0.28 {
-            next = .angle
-        } else if currentBrightness < 0.18 {
+        if currentBrightness < 0.18 {
             next = .lighting
         } else if currentSharpness < 115 {
             next = .blur
@@ -580,7 +572,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
             requiredStableCount = 24
         case .ready:
             requiredStableCount = 10
-        case .angle, .lighting, .distance, .blur:
+        case .angle, .lighting, .distance, .blur, .permissionDenied, .cameraUnavailable:
             requiredStableCount = 14
         }
 
@@ -612,14 +604,7 @@ extension ScannerCameraController: AVCaptureVideoDataOutputSampleBufferDelegate 
             analyzeLabelDistance(pixelBuffer: pixelBuffer)
         }
 
-        evaluateTip(pitch: currentPitch)
-    }
-
-    private var currentPitch: Double {
-        guard motionManager.isDeviceMotionActive, let motion = motionManager.deviceMotion else {
-            return 0
-        }
-        return abs(motion.attitude.pitch)
+        evaluateTip()
     }
 
     private func analyze(pixelBuffer: CVPixelBuffer) -> (brightness: Double, sharpness: Double) {

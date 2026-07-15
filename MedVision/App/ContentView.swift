@@ -41,7 +41,13 @@ struct ContentView: View {
                 .fullScreenCover(isPresented: $showScanCamera, onDismiss: {
                     selectedTab = previousTab
                 }) {
-                    ScanView(showCamera: $showScanCamera)
+                    ScanView(
+                        showCamera: $showScanCamera,
+                        onClose: {
+                            selectedTab = previousTab
+                            showScanCamera = false
+                        }
+                    )
                         .ignoresSafeArea()
                 }
                 .task {
