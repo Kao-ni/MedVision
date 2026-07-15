@@ -83,7 +83,7 @@ async function callTyphoon(blob: Blob, contentType: string) {
     throw new UpstreamError("Typhoon OCR returned no readable text");
   }
 
-  return { rawText: text, upstream: payload };
+  return { rawText: text };
 }
 
 async function callTyphoonParser(rawText: string) {
@@ -145,7 +145,7 @@ async function callTyphoonParser(rawText: string) {
     throw new UpstreamError("Typhoon parse returned no readable text");
   }
 
-  return { structuredText: text, upstream: payload };
+  return { structuredText: text };
 }
 
 Deno.serve((request) => withErrorHandling(request, async () => {
@@ -223,7 +223,6 @@ Deno.serve((request) => withErrorHandling(request, async () => {
       jobId: createdJob.data.id,
       status: "completed",
       rawText: typhoon.rawText,
-      structuredText: parsed.structuredText,
       parsedMedicine,
       parseConfidence: parsedMedicine.confidence,
       warnings: parsedMedicine.warnings

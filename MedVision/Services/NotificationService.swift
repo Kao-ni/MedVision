@@ -1,14 +1,9 @@
 import UserNotifications
-import Foundation
 
 @MainActor
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
     static let shared = NotificationService()
-
-    func setup() {
-        UNUserNotificationCenter.current().delegate = self
-    }
 
     func requestPermission() async {
         _ = try? await UNUserNotificationCenter.current()
