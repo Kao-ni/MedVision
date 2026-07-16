@@ -9,10 +9,14 @@ struct RecognizedMedicine {
     var notes: String = ""
     var photoData: Data? = nil
     var scheduleHint: MedicineScheduleHint? = nil
+    var fieldConfidence: MedicineFieldConfidence = MedicineFieldConfidence()
+    var warnings: [String] = []
+    var resolution: MedicineResolution? = nil
 }
 
 enum RecognitionError: LocalizedError {
     case notConfigured
+    case notSignedIn
     case invalidImageData
     case networkError(Error)
     case badResponse
@@ -25,6 +29,8 @@ enum RecognitionError: LocalizedError {
         switch self {
         case .notConfigured:
             return AppLanguage.localized("Add your Typhoon API key in PrototypeOCRConfig.swift first.")
+        case .notSignedIn:
+            return AppLanguage.localized("Sign in to scan medicine labels with cloud recognition.")
         case .invalidImageData:
             return AppLanguage.localized("Couldn't prepare the photo for OCR.")
         case .networkError(let e):
@@ -46,20 +52,228 @@ enum RecognitionError: LocalizedError {
     }
 }
 
+enum RecognitionStage: Equatable {
+    case idle
+    case readingLabel
+    case checkingLists
+    case verifyingDetails
+
+    var message: String {
+        switch self {
+        case .idle:
+            return ""
+        case .readingLabel:
+            return AppLanguage.localized("Reading label...")
+        case .checkingLists:
+            return AppLanguage.localized("Checking medicine lists...")
+        case .verifyingDetails:
+            return AppLanguage.localized("Verifying details...")
+        }
+    }
+}
+
 struct RecognitionService {
     static let shared = RecognitionService()
     private init() {}
 
-    func recognize(_ image: UIImage) async throws -> RecognizedMedicine {
-        guard PrototypeOCRConfig.isConfigured else {
-            throw RecognitionError.notConfigured
-        }
+    /// Prefer Supabase `recognize-medicine` (consensus pipeline). Falls back to client Typhoon when unsigned / guest.
+    func recognize(
+        _ image: UIImage,
+        accessToken: String? = nil,
+        onStage: ((RecognitionStage) -> Void)? = nil
+    ) async throws -> RecognizedMedicine {
         let resized = image.resized(toMaxDimension: 1280)
         guard let imageData = resized.jpegData(compressionQuality: 0.80) else {
             throw RecognitionError.invalidImageData
         }
 
-        // Step 1: Extract raw text from the image using the OCR model.
+        if SupabaseConfig.isConfigured, let token = accessToken, !token.isEmpty {
+            do {
+                return try await recognizeViaBackend(
+                    imageData: imageData,
+                    accessToken: token,
+                    onStage: onStage
+                )
+            } catch {
+                // Fall through to client OCR when edge function is unreachable.
+                if PrototypeOCRConfig.isConfigured {
+                    onStage?(.readingLabel)
+                    return try await recognizeViaClient(imageData: imageData)
+                }
+                throw error
+            }
+        }
+
+        guard PrototypeOCRConfig.isConfigured else {
+            if SupabaseConfig.isConfigured {
+                throw RecognitionError.notSignedIn
+            }
+            throw RecognitionError.notConfigured
+        }
+
+        onStage?(.readingLabel)
+        return try await recognizeViaClient(imageData: imageData)
+    }
+
+    private func recognizeViaBackend(
+        imageData: Data,
+        accessToken: String,
+        onStage: ((RecognitionStage) -> Void)?
+    ) async throws -> RecognizedMedicine {
+        onStage?(.readingLabel)
+
+        let endpoint = SupabaseConfig.projectURL
+            .appendingPathComponent("functions/v1/recognize-medicine")
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        request.timeoutInterval = 180
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"image\"; filename=\"medicine.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        onStage?(.checkingLists)
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw RecognitionError.networkError(error)
+        }
+
+        guard let http = response as? HTTPURLResponse else {
+            throw RecognitionError.badResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
+            let message = extractErrorMessage(from: data)
+            throw RecognitionError.serviceError(
+                message ?? AppLanguage.localized(
+                    "ocr_status_error_format",
+                    arguments: [http.statusCode]
+                )
+            )
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw RecognitionError.badResponse
+        }
+
+        let judgeSkipped = json["judgeSkipped"] as? Bool ?? true
+        if !judgeSkipped {
+            onStage?(.verifyingDetails)
+        }
+
+        return try mapBackendResponse(json, photoData: imageData)
+    }
+
+    private func mapBackendResponse(_ json: [String: Any], photoData: Data) throws -> RecognizedMedicine {
+        guard let parsed = json["parsedMedicine"] as? [String: Any] else {
+            throw RecognitionError.parsingFailed
+        }
+
+        let isMedicine = parsed["is_medicine"] as? Bool ?? true
+        if isMedicine == false {
+            throw RecognitionError.notMedicine
+        }
+
+        let name = stringValue(parsed["name"])
+        guard !name.isEmpty else {
+            throw RecognitionError.parsingFailed
+        }
+
+        let dosage = stringValue(parsed["dosage"])
+        let notes = stringValue(parsed["notes"])
+        let form = mapForm(stringValue(parsed["form"]))
+        let warnings = (parsed["warnings"] as? [String]) ?? []
+        let resolution = parseResolution(from: json["resolution"] as? [String: Any], judgeSkipped: json["judgeSkipped"] as? Bool ?? false)
+
+        var result = RecognizedMedicine(
+            name: name,
+            dosage: dosage,
+            form: form,
+            notes: notes,
+            photoData: photoData,
+            scheduleHint: nil,
+            fieldConfidence: MedicineFieldConfidence(),
+            warnings: warnings,
+            resolution: resolution
+        )
+
+        // Apply consensus prefill for name/dosage when verified.
+        if let resolution, resolution.status == .consensus {
+            if let finalName = resolution.finalName, !finalName.isEmpty {
+                result.name = finalName
+            }
+            if let finalDosage = resolution.finalDosage, !finalDosage.isEmpty {
+                result.dosage = finalDosage
+            }
+        } else if let resolution, resolution.status == .unverified {
+            if let finalName = resolution.finalName, !finalName.isEmpty {
+                result.name = finalName
+            }
+        }
+
+        return result
+    }
+
+    private func parseResolution(from json: [String: Any]?, judgeSkipped: Bool) -> MedicineResolution? {
+        guard let json else { return nil }
+        let statusRaw = stringValue(json["status"]).lowercased()
+        let status = ResolutionStatus(rawValue: statusRaw) ?? .unverified
+
+        let candidatesJSON = json["candidates"] as? [[String: Any]] ?? []
+        let candidates: [ResolutionCandidate] = candidatesJSON.compactMap { entry in
+            let name = stringValue(entry["name"])
+            guard !name.isEmpty else { return nil }
+            let score: Double?
+            if let number = entry["score"] as? Double {
+                score = number
+            } else if let number = entry["score"] as? NSNumber {
+                score = number.doubleValue
+            } else {
+                score = nil
+            }
+            return ResolutionCandidate(
+                source: stringValue(entry["source"]),
+                name: name,
+                score: score,
+                dosage: {
+                    let value = stringValue(entry["dosage"])
+                    return value.isEmpty ? nil : value
+                }(),
+                verdict: {
+                    let value = stringValue(entry["verdict"])
+                    return value.isEmpty ? nil : value
+                }()
+            )
+        }
+
+        let finalName = stringValue(json["finalName"])
+        let finalDosage = stringValue(json["finalDosage"])
+
+        return MedicineResolution(
+            status: status,
+            finalName: finalName.isEmpty ? nil : finalName,
+            finalDosage: finalDosage.isEmpty ? nil : finalDosage,
+            label: {
+                let value = stringValue(json["label"])
+                return value.isEmpty ? nil : value
+            }(),
+            candidates: candidates,
+            judgeSkipped: judgeSkipped
+        )
+    }
+
+    private func recognizeViaClient(imageData: Data) async throws -> RecognizedMedicine {
         let rawText: String
         do {
             rawText = try await performOCR(imageData: imageData)
@@ -69,7 +283,6 @@ struct RecognitionService {
             throw RecognitionError.networkError(error)
         }
 
-        // Step 2: Parse the raw OCR text into structured medicine JSON using a language model.
         let structuredJSON: String
         do {
             structuredJSON = try await structureMedicineData(from: rawText)
@@ -348,6 +561,8 @@ struct RecognitionService {
         )
         let form = mapForm(firstString(from: json, keys: ["form", "dosage_form", "route"]))
         let scheduleHint = parseScheduleHint(from: json)
+        let fieldConfidence = parseFieldConfidence(from: json)
+        let warnings = parseWarnings(from: json)
 
         return RecognizedMedicine(
             name: name,
@@ -355,8 +570,40 @@ struct RecognitionService {
             form: form,
             notes: notes,
             photoData: photoData,
-            scheduleHint: scheduleHint
+            scheduleHint: scheduleHint,
+            fieldConfidence: fieldConfidence,
+            warnings: warnings,
+            resolution: nil
         )
+    }
+
+    private func parseFieldConfidence(from json: [String: Any]) -> MedicineFieldConfidence {
+        guard let confidence = json["confidence"] as? [String: Any] else {
+            return MedicineFieldConfidence()
+        }
+
+        return MedicineFieldConfidence(
+            name: parseConfidence(confidence["name"]),
+            dosage: parseConfidence(confidence["dosage"]),
+            form: parseConfidence(confidence["form"]),
+            whenToTake: parseConfidence(confidence["when_to_take"])
+        )
+    }
+
+    private func parseConfidence(_ value: Any?) -> RecognitionConfidence? {
+        guard let string = value as? String else { return nil }
+        return RecognitionConfidence(rawValue: string.lowercased())
+    }
+
+    private func parseWarnings(from json: [String: Any]) -> [String] {
+        if let warnings = json["warnings"] as? [String] {
+            return warnings
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        }
+
+        let singleWarning = stringValue(json["warning"])
+        return singleWarning.isEmpty ? [] : [singleWarning]
     }
 
     private func parseScheduleHint(from json: [String: Any]) -> MedicineScheduleHint? {

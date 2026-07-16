@@ -193,7 +193,16 @@
 "Centre the label inside the frame" = "จัดฉลากให้อยู่กลางกรอบ";
 "Centre the barcode inside the frame" = "จัดบาร์โค้ดให้อยู่กลางกรอบ";
 "Scanning label..." = "กำลังสแกนฉลาก...";
+"Reading label..." = "กำลังอ่านฉลาก...";
+"Checking medicine lists..." = "กำลังตรวจสอบรายการยา...";
+"Verifying details..." = "กำลังยืนยันรายละเอียด...";
 "Reading barcode..." = "กำลังอ่านบาร์โค้ด...";
+"Sign in to scan medicine labels with cloud recognition." = "เข้าสู่ระบบเพื่อสแกนฉลากยาผ่านระบบคลาวด์";
+"Verified match" = "ตรวจสอบแล้วตรงกัน";
+"Sources Disagree" = "แหล่งข้อมูลไม่ตรงกัน";
+"Sources disagree on the medicine name. Pick one or type your own." = "แหล่งข้อมูลไม่ตรงกันเรื่องชื่อยา เลือกหนึ่งรายการหรือพิมพ์เอง";
+"Could not verify this medicine. Please check the name carefully." = "ไม่สามารถยืนยันยานี้ได้ กรุณาตรวจสอบชื่ออย่างละเอียด";
+"AI-corrected name (not found in local lists). Please confirm before saving." = "ชื่อที่ AI แก้แล้ว (ไม่พบในรายการท้องถิ่น) กรุณายืนยันก่อนบันทึก";
 "Label captured!" = "จับภาพฉลากแล้ว!";
 "Barcode found!" = "พบบาร์โค้ดแล้ว!";
 "Tilt the camera - hold it flat above the label" = "เอียงกล้อง - ถือให้ขนานเหนือฉลาก";

@@ -28,7 +28,7 @@ function toBase64(bytes: Uint8Array) {
   return btoa(binary);
 }
 
-function extractTyphoonText(payload) {
+function extractTyphoonText(payload: any) {
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
@@ -157,7 +157,7 @@ async function callTyphoonParser(rawText: string) {
   return { structuredText: text };
 }
 
-async function callJudge({ rawText, parsedMedicine, thaiResult, openFdaResult }) {
+async function callJudge({ rawText, parsedMedicine, thaiResult, openFdaResult }: any) {
   const apiKey = getEnv("TYPHOON_API_KEY");
   const baseUrl = getEnv("TYPHOON_BASE_URL", "https://api.opentyphoon.ai/v1");
   const model = getEnv("TYPHOON_PARSE_MODEL", "typhoon-v2.5-30b-a3b-instruct");
@@ -227,108 +227,109 @@ async function callJudge({ rawText, parsedMedicine, thaiResult, openFdaResult })
   }
 }
 
-Deno.serve((request) => withErrorHandling(request, async () => {
-  if (request.method !== "POST") {
-    throw new AppError("Method not allowed", { code: "method_not_allowed", status: 405 });
-  }
+Deno.serve((request) =>
+  withErrorHandling(request, async () => {
+    if (request.method !== "POST") {
+      throw new AppError("Method not allowed", { code: "method_not_allowed", status: 405 });
+    }
 
-  const { adminClient, userId } = await requireUser(request);
-  const formData = await request.formData();
-  const image = formData.get("image");
+    const { adminClient, userId } = await requireUser(request);
+    const formData = await request.formData();
+    const image = formData.get("image");
 
-  if (!(image instanceof Blob)) {
-    throw new AppError("image file is required", { code: "missing_image", status: 400 });
-  }
+    if (!(image instanceof Blob)) {
+      throw new AppError("image file is required", { code: "missing_image", status: 400 });
+    }
 
-  const contentType = image.type || "application/octet-stream";
-  validateRecognitionUpload({ contentType, size: image.size });
+    const contentType = image.type || "application/octet-stream";
+    validateRecognitionUpload({ contentType, size: image.size });
 
-  const path = `${userId}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
-  const uploadResult = await adminClient.storage
-    .from("medicine-images")
-    .upload(path, image, { contentType, upsert: false });
+    const path = `${userId}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+    const uploadResult = await adminClient.storage
+      .from("medicine-images")
+      .upload(path, image, { contentType, upsert: false });
 
-  if (uploadResult.error) {
-    throw new AppError("Failed to upload medicine image", {
-      code: "storage_upload_failed",
-      status: 500,
-      details: uploadResult.error.message
-    });
-  }
-
-  const createdJob = await adminClient
-    .from("recognition_jobs")
-    .insert({
-      user_id: userId,
-      image_path: path,
-      status: "processing"
-    })
-    .select("id")
-    .single();
-
-  if (createdJob.error || !createdJob.data) {
-    throw new AppError("Failed to create recognition job", {
-      code: "recognition_job_failed",
-      status: 500,
-      details: createdJob.error?.message ?? null
-    });
-  }
-
-  try {
-    const typhoon = await callTyphoon(image, contentType);
-    const parsed = await callTyphoonParser(typhoon.rawText);
-    const parsedMedicine = parseRecognizedMedicine(parsed.structuredText);
-
-    const consensus = await runConsensusPipeline({
-      rawText: typhoon.rawText,
-      parsedMedicine,
-      callJudge
-    });
-
-    const resultPayload = {
-      ...parsedMedicine,
-      resolution: consensus.resolution,
-      judgeSkipped: consensus.judgeSkipped
-    };
-
-    const updated = await adminClient
-      .from("recognition_jobs")
-      .update({
-        status: "completed",
-        raw_ocr_text: typhoon.rawText,
-        parsed_result: resultPayload,
-        failure_reason: ""
-      })
-      .eq("id", createdJob.data.id)
-      .eq("user_id", userId);
-
-    if (updated.error) {
-      throw new AppError("Failed to update recognition job", {
-        code: "recognition_job_update_failed",
+    if (uploadResult.error) {
+      throw new AppError("Failed to upload medicine image", {
+        code: "storage_upload_failed",
         status: 500,
-        details: updated.error.message
+        details: uploadResult.error.message
       });
     }
 
-    return json({
-      jobId: createdJob.data.id,
-      status: "completed",
-      rawText: typhoon.rawText,
-      parsedMedicine,
-      resolution: consensus.resolution,
-      judgeSkipped: consensus.judgeSkipped,
-      parseConfidence: parsedMedicine.confidence,
-      warnings: parsedMedicine.warnings
-    });
-  } catch (error) {
-    await adminClient
+    const createdJob = await adminClient
       .from("recognition_jobs")
-      .update({
-        status: "failed",
-        failure_reason: error instanceof Error ? error.message : "Unknown OCR error"
+      .insert({
+        user_id: userId,
+        image_path: path,
+        status: "processing"
       })
-      .eq("id", createdJob.data.id)
-      .eq("user_id", userId);
-    throw error;
-  }
-}));
+      .select("id")
+      .single();
+
+    if (createdJob.error || !createdJob.data) {
+      throw new AppError("Failed to create recognition job", {
+        code: "recognition_job_failed",
+        status: 500,
+        details: createdJob.error?.message ?? null
+      });
+    }
+
+    try {
+      const typhoon = await callTyphoon(image, contentType);
+      const parsed = await callTyphoonParser(typhoon.rawText);
+      const parsedMedicine = parseRecognizedMedicine(parsed.structuredText);
+
+      const consensus = await runConsensusPipeline({
+        rawText: typhoon.rawText,
+        parsedMedicine,
+        callJudge
+      });
+
+      const resultPayload = {
+        ...parsedMedicine,
+        resolution: consensus.resolution,
+        judgeSkipped: consensus.judgeSkipped
+      };
+
+      const updated = await adminClient
+        .from("recognition_jobs")
+        .update({
+          status: "completed",
+          raw_ocr_text: typhoon.rawText,
+          parsed_result: resultPayload,
+          failure_reason: ""
+        })
+        .eq("id", createdJob.data.id)
+        .eq("user_id", userId);
+
+      if (updated.error) {
+        throw new AppError("Failed to update recognition job", {
+          code: "recognition_job_update_failed",
+          status: 500,
+          details: updated.error.message
+        });
+      }
+
+      return json({
+        jobId: createdJob.data.id,
+        status: "completed",
+        rawText: typhoon.rawText,
+        parsedMedicine,
+        resolution: consensus.resolution,
+        judgeSkipped: consensus.judgeSkipped,
+        parseConfidence: parsedMedicine.confidence,
+        warnings: parsedMedicine.warnings
+      });
+    } catch (error) {
+      await adminClient
+        .from("recognition_jobs")
+        .update({
+          status: "failed",
+          failure_reason: error instanceof Error ? error.message : "Unknown OCR error"
+        })
+        .eq("id", createdJob.data.id)
+        .eq("user_id", userId);
+      throw error;
+    }
+  }));

@@ -30,7 +30,10 @@ struct ScanView: View {
     @Binding var showCamera: Bool
     let onClose: () -> Void
 
+    @Environment(AuthService.self) private var auth
+
     @State private var isRecognizing = false
+    @State private var recognitionStage: RecognitionStage = .idle
     @State private var selectedMode: ScannerMode = .label
     @State private var recognitionResult: RecognizedMedicine?
     @State private var showAddMedicine = false
@@ -47,6 +50,9 @@ struct ScanView: View {
             if showCamera {
                 ScannerFullScreenView(
                     isBusy: isRecognizing,
+                    busyMessage: recognitionStage == .idle
+                        ? nil
+                        : recognitionStage.message,
                     selectedMode: $selectedMode,
                     onClose: onClose,
                     onCapture: { image in
@@ -100,13 +106,22 @@ struct ScanView: View {
             await MainActor.run {
                 didCaptureBarcode = false
                 isRecognizing = true
+                recognitionStage = .readingLabel
                 capturedPhotoData = image.jpegData(compressionQuality: 0.8)
                 ocrErrorMessage = nil
                 scannedBarcode = nil
             }
 
             do {
-                let result = try await RecognitionService.shared.recognize(image)
+                let token = await MainActor.run { auth.session?.accessToken }
+                let result = try await RecognitionService.shared.recognize(
+                    image,
+                    accessToken: token
+                ) { stage in
+                    Task { @MainActor in
+                        recognitionStage = stage
+                    }
+                }
                 await MainActor.run {
                     recognitionResult = result
                     ocrErrorMessage = nil
@@ -120,6 +135,7 @@ struct ScanView: View {
             }
             await MainActor.run {
                 isRecognizing = false
+                recognitionStage = .idle
                 showAddMedicine = true
             }
         }
@@ -226,6 +242,7 @@ struct ScanView: View {
 
 private struct ScannerFullScreenView: View {
     let isBusy: Bool
+    var busyMessage: String? = nil
     @Binding var selectedMode: ScannerMode
     let onClose: () -> Void
     let onCapture: (UIImage) -> Void
@@ -264,6 +281,21 @@ private struct ScannerFullScreenView: View {
                 VStack(spacing: 0) {
                     Spacer()
                     footerStack(safe: safe)
+                }
+
+                if isBusy {
+                    Color.black.opacity(0.35)
+                        .ignoresSafeArea()
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(1.2)
+                        Text(busyMessage ?? AppLanguage.localized("Reading label..."))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
                 }
             }
             .onAppear {
