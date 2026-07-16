@@ -119,10 +119,6 @@ struct MedicineDetailView: View {
                 value: AppLanguage.localized(medicine.form.localizationKey, locale: locale),
                 systemImage: medicine.form.systemImage
             )
-            if let barcode = medicine.barcode, !barcode.isEmpty {
-                detailRow(label: "Barcode", value: barcode, systemImage: "barcode")
-                    .textSelection(.enabled)
-            }
             if !medicine.notes.isEmpty {
                 Divider().overlay(Color.mvBorder.opacity(0.45))
                 VStack(alignment: .leading, spacing: 5) {

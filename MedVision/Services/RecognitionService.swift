@@ -491,7 +491,7 @@ struct RecognitionService {
         Raw OCR text. The source label may be in Thai, English, or both — Thai is common
         for pharmacy-dispensed medicine in Thailand. Assume the text is imperfect: character
         errors (e.g. "5Omg" for "50mg"), missing or out-of-order fragments, mixed languages,
-        and unrelated text (barcodes, manufacturer address, marketing, price stickers).
+        and unrelated text (manufacturer address, marketing, price stickers).
         It may not be a medicine at all.
 
         Correct only obvious OCR artifacts inside values (letter O read as zero in a dose

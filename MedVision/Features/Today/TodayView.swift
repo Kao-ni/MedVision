@@ -2,6 +2,36 @@ import SwiftUI
 import SwiftData
 import Auth
 
+private extension TodayTimePeriod {
+    var title: LocalizedStringKey {
+        switch self {
+        case .morning: "Morning"
+        case .lunch: "Lunch"
+        case .afternoon: "Afternoon"
+        case .dinner: "Dinner"
+        case .night: "Night"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .morning: "sunrise.fill"
+        case .lunch: "sun.max.fill"
+        case .afternoon: "cloud.sun.fill"
+        case .dinner: "sunset.fill"
+        case .night: "moon.stars.fill"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .morning, .dinner: .mvWarning
+        case .lunch, .night: .mvAccent
+        case .afternoon: .mvSuccess
+        }
+    }
+}
+
 struct TodayView: View {
     @Query(sort: \DoseEvent.scheduledTime) private var allEvents: [DoseEvent]
     @Query private var allMedicines: [Medicine]
@@ -9,25 +39,41 @@ struct TodayView: View {
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("profile_firstName") private var firstName = ""
+    @AppStorage(UserMealTimes.breakfastKey) private var breakfastSeconds = UserMealTimes.defaultBreakfast
+    @AppStorage(UserMealTimes.lunchKey) private var lunchSeconds = UserMealTimes.defaultLunch
+    @AppStorage(UserMealTimes.dinnerKey) private var dinnerSeconds = UserMealTimes.defaultDinner
     @State private var hasAppeared = false
     @Environment(AuthService.self) private var auth
+    private let runsStartupTasks: Bool
+    private let previewMealTimes: UserMealTimes?
+
+    init(
+        runsStartupTasks: Bool = true,
+        previewMealTimes: UserMealTimes? = nil
+    ) {
+        self.runsStartupTasks = runsStartupTasks
+        self.previewMealTimes = previewMealTimes
+    }
 
     private var todayEvents: [DoseEvent] {
         allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
     }
 
-    private var overdue: [DoseEvent] {
-        todayEvents.filter { $0.status == .pending && $0.scheduledTime < .now }
-    }
-
-    private var upcoming: [DoseEvent] {
-        todayEvents.filter { $0.status == .pending && $0.scheduledTime >= .now }
-    }
-
-    private var done: [DoseEvent] {
-        todayEvents
-            .filter { $0.status != .pending }
-            .sorted { $0.scheduledTime < $1.scheduledTime }
+    private var eventsByPeriod: [TodayTimePeriod: [DoseEvent]] {
+        let mealTimes = previewMealTimes ?? UserMealTimes(
+            breakfastSeconds: breakfastSeconds,
+            lunchSeconds: lunchSeconds,
+            dinnerSeconds: dinnerSeconds
+        )
+        let classifier = TodayPeriodClassifier(
+            breakfastSeconds: mealTimes.breakfastSeconds,
+            lunchSeconds: mealTimes.lunchSeconds,
+            dinnerSeconds: mealTimes.dinnerSeconds
+        )
+        return Dictionary(
+            grouping: todayEvents.sorted { $0.scheduledTime < $1.scheduledTime },
+            by: { classifier.period(for: $0.scheduledTime) }
+        )
     }
 
     private var takenCount: Int { todayEvents.filter { $0.status == .complete }.count }
@@ -40,31 +86,14 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     header
 
-                    if todayEvents.isEmpty {
-                        emptyState
-                    } else {
+                    if !todayEvents.isEmpty {
                         ProgressCard(taken: takenCount, total: totalCount, progress: progress)
+                    }
 
+                    ForEach(TodayTimePeriod.allCases) { period in
                         doseSection(
-                            title: "Overdue",
-                            systemImage: "exclamationmark.circle.fill",
-                            tint: .mvDanger,
-                            events: overdue,
-                            overdue: true
-                        )
-                        doseSection(
-                            title: "Upcoming",
-                            systemImage: "clock.fill",
-                            tint: .mvAccent,
-                            events: upcoming,
-                            overdue: false
-                        )
-                        doseSection(
-                            title: "Done",
-                            systemImage: "checkmark.circle.fill",
-                            tint: .mvSuccess,
-                            events: done,
-                            overdue: false
+                            period: period,
+                            events: eventsByPeriod[period] ?? []
                         )
                     }
                 }
@@ -78,9 +107,11 @@ struct TodayView: View {
             .mvScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
             .task {
-                DoseSyncService.mirrorMissedStatuses(events: Array(allEvents))
-                generateTodayEventsIfNeeded()
-                await syncTodayToCloud()
+                if runsStartupTasks {
+                    DoseSyncService.mirrorMissedStatuses(events: Array(allEvents))
+                    generateTodayEventsIfNeeded()
+                    await syncTodayToCloud()
+                }
                 if reduceMotion {
                     hasAppeared = true
                 } else {
@@ -128,46 +159,41 @@ struct TodayView: View {
 
     @ViewBuilder
     private func doseSection(
-        title: LocalizedStringKey,
-        systemImage: String,
-        tint: Color,
-        events: [DoseEvent],
-        overdue: Bool
+        period: TodayTimePeriod,
+        events: [DoseEvent]
     ) -> some View {
-        if !events.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    MVSectionHeader(title: title, systemImage: systemImage, tint: tint)
-                    Spacer()
-                    Text("\(events.count)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(tint)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(tint.opacity(0.13), in: Capsule())
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                MVSectionHeader(
+                    title: period.title,
+                    systemImage: period.systemImage,
+                    tint: period.tint
+                )
+                Spacer()
+                Text("\(events.count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(period.tint)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(period.tint.opacity(0.13), in: Capsule())
+            }
 
+            if events.isEmpty {
+                Label("No doses scheduled", systemImage: "minus.circle")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.mvSubtle)
+                    .padding(15)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .glassCard()
+            } else {
                 ForEach(events) { event in
-                    TodayDoseCard(event: event, isOverdue: overdue)
+                    TodayDoseCard(
+                        event: event,
+                        isOverdue: event.status == .pending && event.scheduledTime < .now
+                    )
                 }
             }
         }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 22) {
-            MVEmptyState(
-                systemImage: "moon.zzz.fill",
-                title: "Nothing Scheduled",
-                message: "Add medicines and their schedule in the Medicines tab."
-            )
-            Label("Add medicines from the Medicines tab", systemImage: "arrow.down")
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(Color.mvAccent)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 34)
-        .glassCard()
     }
 
     private func generateTodayEventsIfNeeded() {
@@ -408,8 +434,85 @@ private struct TodayDoseCard: View {
     }
 }
 
-#Preview {
-    TodayView()
+#Preview("Today — meal periods") {
+    TodayView(
+        runsStartupTasks: false,
+        previewMealTimes: UserMealTimes(
+            breakfastSeconds: UserMealTimes.defaultBreakfast,
+            lunchSeconds: UserMealTimes.defaultLunch,
+            dinnerSeconds: UserMealTimes.defaultDinner
+        )
+    )
         .environment(AuthService())
-        .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
+        .modelContainer(todayPreviewContainer(populated: true))
+}
+
+#Preview("Today — empty, Thai dark") {
+    TodayView(
+        runsStartupTasks: false,
+        previewMealTimes: UserMealTimes(
+            breakfastSeconds: UserMealTimes.defaultBreakfast,
+            lunchSeconds: UserMealTimes.defaultLunch,
+            dinnerSeconds: UserMealTimes.defaultDinner
+        )
+    )
+        .environment(AuthService())
+        .environment(\.locale, Locale(identifier: "th"))
+        .preferredColorScheme(.dark)
+        .modelContainer(todayPreviewContainer(populated: false))
+}
+
+#Preview("Today — accessibility text") {
+    TodayView(
+        runsStartupTasks: false,
+        previewMealTimes: UserMealTimes(
+            breakfastSeconds: UserMealTimes.defaultBreakfast,
+            lunchSeconds: UserMealTimes.defaultLunch,
+            dinnerSeconds: UserMealTimes.defaultDinner
+        )
+    )
+        .environment(AuthService())
+        .dynamicTypeSize(.accessibility2)
+        .modelContainer(todayPreviewContainer(populated: true))
+}
+
+@MainActor
+private func todayPreviewContainer(populated: Bool) -> ModelContainer {
+    let schema = Schema([Medicine.self, DoseEvent.self])
+    let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: schema, configurations: configuration)
+    guard populated else { return container }
+
+    let medicine = Medicine(name: "Sample dose", dosage: "1 dose")
+    container.mainContext.insert(medicine)
+
+    let samples: [(hour: Int, minute: Int, status: DoseStatus)] = [
+        (0, 0, .pending),
+        (8, 0, .complete),
+        (12, 0, .missed),
+        (15, 0, .omitted),
+        (18, 0, .pending),
+        (21, 0, .pending)
+    ]
+
+    for sample in samples {
+        guard let scheduledTime = Calendar.current.date(
+            bySettingHour: sample.hour,
+            minute: sample.minute,
+            second: 0,
+            of: .now
+        ) else { continue }
+        let event = DoseEvent(
+            scheduledTime: scheduledTime,
+            status: sample.status,
+            medicine: medicine
+        )
+        if sample.status == .complete {
+            event.takenTime = scheduledTime.addingTimeInterval(5 * 60)
+        }
+        container.mainContext.insert(event)
+    }
+
+    try? container.mainContext.save()
+    return container
 }

@@ -31,6 +31,10 @@
 "Good afternoon" = "สวัสดีตอนบ่าย";
 "Good evening" = "สวัสดีตอนเย็น";
 "Daily progress" = "ความคืบหน้าประจำวัน";
+"Morning" = "ช่วงเช้า";
+"Afternoon" = "ช่วงบ่าย";
+"Night" = "ช่วงกลางคืน";
+"No doses scheduled" = "ไม่มียาตามกำหนด";
 "Add medicines from the Medicines tab" = "เพิ่มยาได้จากแท็บรายการยา";
 "Medicines" = "รายการยา";
 "Manage doses and reminders in one place" = "จัดการขนาดยาและการแจ้งเตือนในที่เดียว";

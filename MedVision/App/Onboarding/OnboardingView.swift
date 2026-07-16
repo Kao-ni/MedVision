@@ -1,6 +1,8 @@
 import UIKit
 import SwiftUI
 
+private let mvTwentyFourHourLocale = Locale(identifier: "en_GB")
+
 private struct OnboardingPage {
     let systemImage: String
     let color: Color
@@ -526,6 +528,7 @@ struct OnboardingView: View {
                 ),
                 displayedComponents: .hourAndMinute
             )
+            .environment(\.locale, mvTwentyFourHourLocale)
             .labelsHidden()
         }
         .padding(16)

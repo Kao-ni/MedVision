@@ -2,6 +2,8 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
+private let mvTwentyFourHourLocale = Locale(identifier: "en_GB")
+
 struct ProfileView: View {
     @Environment(AuthService.self) private var auth
     @AppStorage("profile_firstName") private var firstName = "First Name"
@@ -310,6 +312,7 @@ struct ProfileView: View {
                 ),
                 displayedComponents: .hourAndMinute
             )
+            .environment(\.locale, mvTwentyFourHourLocale)
             .font(.body)
             .tint(Color.mvAccent)
         }

@@ -388,7 +388,6 @@ private struct ScannerFullScreenView: View {
             return CGSize(width: size.width * 0.75, height: size.height * 0.18)
         }
     }
-
 }
 
 private enum ScannerMode: String, CaseIterable {
@@ -856,6 +855,18 @@ extension ScannerCameraController: AVCaptureVideoDataOutputSampleBufferDelegate 
     }
 }
 
+extension ScannerCameraController: AVCaptureMetadataOutputObjectsDelegate {
+    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+        guard currentMode == .barcode else { return }
+        guard let readable = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              let value = readable.stringValue, !value.isEmpty else { return }
+        DispatchQueue.main.async {
+            self.tipState = .ready
+            self.onBarcodeCapture?(value)
+        }
+    }
+}
+
 private final class ScannerPhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
     nonisolated(unsafe) var onPhoto: ((UIImage) -> Void)?
     nonisolated(unsafe) var onFinish: (() -> Void)?
@@ -875,18 +886,6 @@ private final class ScannerPhotoDelegate: NSObject, AVCapturePhotoCaptureDelegat
 
         DispatchQueue.main.async { [onPhoto] in
             onPhoto?(image)
-        }
-    }
-}
-
-extension ScannerCameraController: AVCaptureMetadataOutputObjectsDelegate {
-    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
-        guard currentMode == .barcode else { return }
-        guard let readable = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              let value = readable.stringValue, !value.isEmpty else { return }
-        DispatchQueue.main.async {
-            self.tipState = .ready
-            self.onBarcodeCapture?(value)
         }
     }
 }

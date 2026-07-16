@@ -31,6 +31,10 @@
 "Good afternoon" = "Good afternoon";
 "Good evening" = "Good evening";
 "Daily progress" = "Daily progress";
+"Morning" = "Morning";
+"Afternoon" = "Afternoon";
+"Night" = "Night";
+"No doses scheduled" = "No doses scheduled";
 "Add medicines from the Medicines tab" = "Add medicines from the Medicines tab";
 "Medicines" = "Medicines";
 "Manage doses and reminders in one place" = "Manage doses and reminders in one place";
