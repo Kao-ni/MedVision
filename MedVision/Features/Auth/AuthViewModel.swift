@@ -93,6 +93,10 @@ final class AuthViewModel {
         }
     }
 
+    func continueAsGuest() {
+        auth.continueAsGuest()
+    }
+
     func signInWithGoogle() async {
         errorMessage = nil
         infoMessage = nil

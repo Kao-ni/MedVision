@@ -29,6 +29,7 @@ final class AuthService {
     private(set) var session: Session?
     private(set) var isRestoringSession = true
     private(set) var isConfigured: Bool
+    private(set) var isGuest = false
 
     let client: SupabaseClient
     private var authListenerTask: Task<Void, Never>?
@@ -40,7 +41,11 @@ final class AuthService {
         Task { await restoreSession() }
     }
 
-    var isSignedIn: Bool { session != nil }
+    var isSignedIn: Bool { session != nil || isGuest }
+
+    func continueAsGuest() {
+        isGuest = true
+    }
 
     var userEmail: String? {
         session?.user.email
@@ -60,7 +65,7 @@ final class AuthService {
             return
         }
         do {
-            session = try await client.auth.session
+            session = Self.validSession(try await client.auth.session)
         } catch {
             session = nil
         }
@@ -138,6 +143,10 @@ final class AuthService {
     }
 
     func signOut() async throws {
+        if isGuest {
+            isGuest = false
+            return
+        }
         try ensureConfigured()
         try await client.auth.signOut()
         session = nil
@@ -155,7 +164,7 @@ final class AuthService {
             for await (event, session) in await self.client.auth.authStateChanges {
                 switch event {
                 case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
-                    self.session = session
+                    self.session = Self.validSession(session)
                     self.isRestoringSession = false
                 case .signedOut:
                     self.session = nil
@@ -165,6 +174,11 @@ final class AuthService {
                 }
             }
         }
+    }
+
+    private static func validSession(_ session: Session?) -> Session? {
+        guard let session, !session.isExpired else { return nil }
+        return session
     }
 }
 

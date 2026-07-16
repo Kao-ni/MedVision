@@ -129,6 +129,18 @@ struct AuthView: View {
                     .accessibilityLabel("Continue with Google")
                 }
 
+                Button {
+                    viewModel.continueAsGuest()
+                } label: {
+                    Text("Continue as Guest")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                }
+                .disabled(viewModel.isLoading)
+                .accessibilityLabel("Continue as guest without signing in")
+
                 Text("You’ll stay signed in on this phone until you sign out.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

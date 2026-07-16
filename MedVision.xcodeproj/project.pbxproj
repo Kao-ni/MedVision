@@ -20,7 +20,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				MedVision.entitlements,
 			);
 			target = 327E5EB73000855600B3582A /* MedVision */;
 		};
