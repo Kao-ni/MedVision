@@ -7,20 +7,35 @@ struct AuthView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("MedVision")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .accessibilityAddTraits(.isHeader)
+            VStack(spacing: 24) {
+                VStack(spacing: 18) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.accentColor.opacity(0.12))
+                            .frame(width: 140, height: 140)
 
-                    Text(viewModel.mode == .signIn
-                       ? "Sign in to continue"
-                       : "Create your account")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
+                        Image(systemName: "pills.fill")
+                            .font(.system(size: 62, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                    }
+
+                    VStack(spacing: 8) {
+                        Text(viewModel.mode == .signIn
+                             ? "Welcome to MedVision"
+                             : "Create Your Account")
+                            .font(.largeTitle.bold())
+                            .multilineTextAlignment(.center)
+                            .accessibilityAddTraits(.isHeader)
+
+                        Text(viewModel.mode == .signIn
+                             ? "Sign in to continue managing your medicines."
+                             : "Create an account to keep your medicine information together.")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
                 }
-                .padding(.top, 24)
+                .padding(.top, 20)
 
                 Picker("Mode", selection: $viewModel.mode) {
                     ForEach(AuthViewModel.Mode.allCases, id: \.self) { mode in
@@ -30,6 +45,9 @@ struct AuthView: View {
                 .pickerStyle(.segmented)
                 .accessibilityLabel("Sign in or create account")
                 .disabled(viewModel.isLoading)
+                .padding(4)
+                .background(Color.secondary.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
 
                 VStack(spacing: 16) {
                     authField(
@@ -81,25 +99,38 @@ struct AuthView: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(minHeight: 56)
+                    .frame(minHeight: 60)
+                    .background(Color.accentColor)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.plain)
                 .disabled(viewModel.isLoading || !auth.isConfigured)
+                .opacity(viewModel.isLoading || !auth.isConfigured ? 0.5 : 1)
                 .accessibilityLabel(viewModel.primaryButtonTitle)
 
-                VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(height: 1)
                     Text("Or continue with")
-                        .font(.subheadline)
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
+                        .fixedSize()
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.25))
+                        .frame(height: 1)
+                }
 
+                VStack(spacing: 12) {
                     SignInWithAppleButton(.signIn) { request in
                         request.requestedScopes = [.email, .fullName]
                     } onCompletion: { result in
                         Task { await viewModel.handleAppleResult(result) }
                     }
                     .signInWithAppleButtonStyle(.black)
-                    .frame(height: 56)
+                    .frame(height: 60)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
                     .disabled(viewModel.isLoading || !auth.isConfigured)
                     .accessibilityLabel("Sign in with Apple")
 
@@ -114,10 +145,17 @@ struct AuthView: View {
                                 .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(minHeight: 56)
+                        .frame(minHeight: 60)
+                        .background(Color.secondary.opacity(0.08))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18)
+                                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                     .disabled(viewModel.isLoading || !auth.isConfigured)
+                    .opacity(viewModel.isLoading || !auth.isConfigured ? 0.5 : 1)
                     .accessibilityLabel("Continue with Google")
                 }
 
@@ -125,22 +163,27 @@ struct AuthView: View {
                     viewModel.continueAsGuest()
                 } label: {
                     Text("Continue as Guest")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.headline)
+                        .foregroundStyle(Color.accentColor)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .frame(minHeight: 56)
+                        .background(Color.accentColor.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
+                .buttonStyle(.plain)
                 .disabled(viewModel.isLoading)
                 .accessibilityLabel("Continue as guest without signing in")
 
                 Text("You’ll stay signed in on this phone until you sign out.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
                     .padding(.bottom, 24)
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 28)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color(.systemBackground))
         .scrollDismissesKeyboard(.interactively)
     }
 
@@ -168,7 +211,11 @@ struct AuthView: View {
             .font(.title3)
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
-            .background(Color(.systemBackground))
+            .background(Color.secondary.opacity(0.08))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+            }
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .accessibilityLabel(title)
         }
