@@ -1,10 +1,9 @@
 import Foundation
 
 /// On-device consensus for guest / offline OCR — mirrors backend consensusEngine.js
-/// without requiring Supabase auth.
+/// Accuracy-first: Thai → gated openFDA → LLM judge always → agreement resolution.
 enum LocalConsensusEngine {
     static let hitThreshold = 0.85
-    static let strongThreshold = 0.95
 
     struct MatchResult {
         var source: String
@@ -62,12 +61,7 @@ enum LocalConsensusEngine {
         return best
     }
 
-    static func shouldSkipJudge(thai: MatchResult?, openFda: MatchResult?) -> Bool {
-        guard let thai, thai.score >= strongThreshold else { return false }
-        guard let openFda else { return true }
-        return normalizeName(thai.name) == normalizeName(openFda.name)
-    }
-
+    /// Agreement-based resolution. All sources equal — no winner-picking on conflict.
     static func resolve(
         ocrName: String,
         ocrDosage: String,
@@ -82,7 +76,7 @@ enum LocalConsensusEngine {
         if let openFda {
             candidates.append(ResolutionCandidate(source: "openfda", name: openFda.name, score: openFda.score))
         }
-        if let judgeName = judge?.name, !judgeName.isEmpty {
+        if let judgeName = judge?.name, !judgeName.isEmpty, judge?.verdict != "uncertain" {
             candidates.append(
                 ResolutionCandidate(
                     source: "judge",
@@ -94,93 +88,42 @@ enum LocalConsensusEngine {
             )
         }
 
-        let judgeUncertain = judge == nil
-            || judge?.verdict == "uncertain"
-            || (judge?.name?.isEmpty ?? true)
         let dosageFromJudge = judge?.dosage?.trimmingCharacters(in: .whitespacesAndNewlines)
         let dosage = (dosageFromJudge?.isEmpty == false ? dosageFromJudge! : ocrDosage)
 
-        let both = thai != nil && openFda != nil
-        let sameNames = both && normalizeName(thai!.name) == normalizeName(openFda!.name)
-
-        if sameNames, let thai {
+        if candidates.isEmpty {
             return MedicineResolution(
-                status: .consensus,
-                finalName: thai.name,
-                finalDosage: dosage,
-                label: "verified",
+                status: .unverified,
+                finalName: ocrName,
+                finalDosage: ocrDosage,
+                label: "unverified",
                 candidates: candidates,
-                judgeSkipped: judge == nil
+                judgeSkipped: false
             )
         }
 
-        if both, !sameNames {
-            if !judgeUncertain, let judge, let verdict = Optional(judge.verdict), verdict != "uncertain" {
-                let pick: String
-                switch verdict {
-                case "prefer_thai": pick = thai!.name
-                case "prefer_openfda": pick = openFda!.name
-                default: pick = judge.name ?? thai!.name
-                }
-                return MedicineResolution(
-                    status: .consensus,
-                    finalName: pick,
-                    finalDosage: dosage,
-                    label: "verified",
-                    candidates: candidates,
-                    judgeSkipped: false
-                )
-            }
+        let distinct = Set(candidates.map { normalizeName($0.name) }.filter { !$0.isEmpty })
+        if distinct.count > 1 {
             return MedicineResolution(
                 status: .disagreement,
                 finalName: nil,
                 finalDosage: ocrDosage,
                 label: "conflict",
                 candidates: candidates,
-                judgeSkipped: judge == nil
-            )
-        }
-
-        if let thai, openFda == nil {
-            return MedicineResolution(
-                status: .consensus,
-                finalName: thai.name,
-                finalDosage: dosage,
-                label: "verified",
-                candidates: candidates,
-                judgeSkipped: judge == nil
-            )
-        }
-
-        if let openFda, thai == nil {
-            return MedicineResolution(
-                status: .consensus,
-                finalName: openFda.name,
-                finalDosage: dosage,
-                label: "verified",
-                candidates: candidates,
-                judgeSkipped: judge == nil
-            )
-        }
-
-        if thai == nil, openFda == nil, let judgeName = judge?.name, !judgeName.isEmpty, judge?.verdict != "uncertain" {
-            return MedicineResolution(
-                status: .consensus,
-                finalName: judgeName,
-                finalDosage: dosage,
-                label: "ai_corrected",
-                candidates: candidates,
                 judgeSkipped: false
             )
         }
 
+        let sources = Set(candidates.map(\.source))
+        let label = (sources.count == 1 && sources.contains("judge")) ? "ai_corrected" : "verified"
+
         return MedicineResolution(
-            status: .unverified,
-            finalName: ocrName,
-            finalDosage: ocrDosage,
-            label: "unverified",
+            status: .consensus,
+            finalName: candidates[0].name,
+            finalDosage: dosage,
+            label: label,
             candidates: candidates,
-            judgeSkipped: judge == nil
+            judgeSkipped: false
         )
     }
 
@@ -221,20 +164,17 @@ enum LocalConsensusEngine {
         }
     }
 
-    /// Runs Thai + openFDA in parallel, optionally calls a judge closure, returns resolution.
+    /// Sequential: Thai → gated openFDA → judge always → resolve by agreement.
     static func run(
         ocrName: String,
         ocrDosage: String,
         callJudge: ((MatchResult?, MatchResult?) async -> JudgeResult?)? = nil
     ) async -> MedicineResolution {
-        async let thaiTask = Task { matchThaiMedicine(ocrName) }.value
-        async let fdaTask = Task { await lookupOpenFda(name: ocrName) }.value
-        let thai = await thaiTask
-        let openFda = await fdaTask
+        let thai = matchThaiMedicine(ocrName)
+        let openFda = await lookupOpenFda(name: ocrName)
 
         var judge: JudgeResult?
-        let skip = shouldSkipJudge(thai: thai, openFda: openFda)
-        if !skip, let callJudge {
+        if let callJudge {
             judge = await callJudge(thai, openFda)
         }
 

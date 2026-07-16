@@ -143,6 +143,7 @@ struct RecognitionService {
         request.httpBody = body
 
         onStage?(.checkingLists)
+        onStage?(.verifyingDetails)
 
         let (data, response): (Data, URLResponse)
         do {
@@ -166,11 +167,6 @@ struct RecognitionService {
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw RecognitionError.badResponse
-        }
-
-        let judgeSkipped = json["judgeSkipped"] as? Bool ?? true
-        if !judgeSkipped {
-            onStage?(.verifyingDetails)
         }
 
         return try mapBackendResponse(json, photoData: imageData)
@@ -299,11 +295,11 @@ struct RecognitionService {
         var medicine = try parseRecognizedMedicine(from: structuredJSON, photoData: imageData)
 
         onStage?(.checkingLists)
+        onStage?(.verifyingDetails)
         let resolution = await LocalConsensusEngine.run(
             ocrName: medicine.name,
             ocrDosage: medicine.dosage
         ) { thai, openFda in
-            onStage?(.verifyingDetails)
             return await self.callLocalJudge(
                 rawText: rawText,
                 medicine: medicine,

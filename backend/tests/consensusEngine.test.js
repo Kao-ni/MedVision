@@ -8,8 +8,7 @@ import {
 } from "../src/thaiMedicineMatch.js";
 import {
   resolveConsensus,
-  runConsensusPipeline,
-  shouldSkipJudge
+  runConsensusPipeline
 } from "../src/consensusEngine.js";
 
 test("normalizeName strips dosage and form words", () => {
@@ -40,65 +39,32 @@ test("Thai fuzzy match hits strong alias and rejects nonsense", () => {
   assert.equal(miss, null);
 });
 
-test("shouldSkipJudge when Thai is strong and FDA absent or agrees", () => {
-  assert.equal(
-    shouldSkipJudge({ name: "Sara", score: 0.97 }, null),
-    true
-  );
-  assert.equal(
-    shouldSkipJudge({ name: "Paracetamol", score: 0.96 }, { name: "Paracetamol", score: 1 }),
-    true
-  );
-  assert.equal(
-    shouldSkipJudge({ name: "Sara", score: 0.97 }, { name: "Sarafem", score: 1 }),
-    false
-  );
-  assert.equal(
-    shouldSkipJudge({ name: "Sara", score: 0.9 }, null),
-    false
-  );
-});
-
-test("resolution: Thai-only strong match is consensus", () => {
+test("resolution: all returned sources agree is consensus", () => {
   const result = resolveConsensus({
     ocrName: "Sara",
     ocrDosage: "500 mg",
     thaiResult: { name: "Sara", score: 0.98 },
     openFdaResult: null,
-    judgeResult: null
+    judgeResult: { name: "Sara", dosage: "500 mg", verdict: "prefer_thai" }
   });
   assert.equal(result.status, "consensus");
   assert.equal(result.finalName, "Sara");
-  assert.equal(result.finalDosage, "500 mg");
+  assert.equal(result.label, "verified");
 });
 
-test("resolution: same Thai and openFDA names is consensus", () => {
+test("resolution: Thai and openFDA same name is consensus", () => {
   const result = resolveConsensus({
     ocrName: "paracetamol",
     ocrDosage: "500 mg",
     thaiResult: { name: "Paracetamol", score: 0.99 },
     openFdaResult: { name: "Paracetamol", score: 1 },
-    judgeResult: null
+    judgeResult: { name: "Paracetamol", verdict: "prefer_ocr" }
   });
   assert.equal(result.status, "consensus");
   assert.equal(result.finalName, "Paracetamol");
 });
 
-test("resolution: DB disagreement with uncertain judge is disagreement", () => {
-  const result = resolveConsensus({
-    ocrName: "Sara",
-    ocrDosage: "500 mg",
-    thaiResult: { name: "Sara", score: 0.97 },
-    openFdaResult: { name: "Sarafem", score: 1 },
-    judgeResult: { name: null, verdict: "uncertain" }
-  });
-  assert.equal(result.status, "disagreement");
-  assert.equal(result.finalName, null);
-  assert.ok(result.candidates.some((c) => c.name === "Sara"));
-  assert.ok(result.candidates.some((c) => c.name === "Sarafem"));
-});
-
-test("resolution: DB disagreement with prefer_thai is consensus", () => {
+test("resolution: any source disagreement is disagreement — no winner picking", () => {
   const result = resolveConsensus({
     ocrName: "Sara",
     ocrDosage: "500 mg",
@@ -106,11 +72,25 @@ test("resolution: DB disagreement with prefer_thai is consensus", () => {
     openFdaResult: { name: "Sarafem", score: 1 },
     judgeResult: { name: "Sara", dosage: "500 mg", verdict: "prefer_thai" }
   });
-  assert.equal(result.status, "consensus");
-  assert.equal(result.finalName, "Sara");
+  assert.equal(result.status, "disagreement");
+  assert.equal(result.finalName, null);
+  assert.ok(result.candidates.some((c) => c.name === "Sara"));
+  assert.ok(result.candidates.some((c) => c.name === "Sarafem"));
 });
 
-test("resolution: judge-only non-uncertain is ai_corrected consensus", () => {
+test("resolution: Thai vs judge disagreement is disagreement", () => {
+  const result = resolveConsensus({
+    ocrName: "Sara",
+    ocrDosage: "500 mg",
+    thaiResult: { name: "Sara", score: 0.97 },
+    openFdaResult: null,
+    judgeResult: { name: "Sarafem", verdict: "prefer_ocr" }
+  });
+  assert.equal(result.status, "disagreement");
+  assert.equal(result.finalName, null);
+});
+
+test("resolution: judge-only non-uncertain is consensus suggestion", () => {
   const result = resolveConsensus({
     ocrName: "Paracetmol",
     ocrDosage: "5O0 mg",
@@ -124,7 +104,7 @@ test("resolution: judge-only non-uncertain is ai_corrected consensus", () => {
   assert.equal(result.finalDosage, "500 mg");
 });
 
-test("resolution: nothing verified returns unverified with OCR name", () => {
+test("resolution: nothing named returns unverified with OCR name", () => {
   const result = resolveConsensus({
     ocrName: "Unknown Herb Mix",
     ocrDosage: "10 ml",
@@ -137,20 +117,20 @@ test("resolution: nothing verified returns unverified with OCR name", () => {
   assert.equal(result.finalDosage, "10 ml");
 });
 
-test("runConsensusPipeline skips judge on strong Thai hit", async () => {
+test("runConsensusPipeline always calls judge when provided", async () => {
   let judgeCalled = false;
   const outcome = await runConsensusPipeline({
     rawText: "Sara 500 mg",
     parsedMedicine: { name: "Sara", dosage: "500 mg" },
     callJudge: async () => {
       judgeCalled = true;
-      return { name: "Sara", verdict: "prefer_thai" };
+      return { name: "Sara", dosage: "500 mg", verdict: "prefer_thai" };
     },
     fetchImpl: async () => ({ ok: false, status: 500 })
   });
 
-  assert.equal(outcome.judgeSkipped, true);
-  assert.equal(judgeCalled, false);
+  assert.equal(outcome.judgeSkipped, false);
+  assert.equal(judgeCalled, true);
   assert.equal(outcome.resolution.status, "consensus");
   assert.equal(outcome.resolution.finalName, "Sara");
 });
@@ -160,11 +140,40 @@ test("runConsensusPipeline skips openFDA for Thai-script names", async () => {
   await runConsensusPipeline({
     rawText: "ซาร่า",
     parsedMedicine: { name: "ซาร่า", dosage: "500 mg" },
-    callJudge: null,
+    callJudge: async () => ({ name: "Sara", verdict: "prefer_thai" }),
     fetchImpl: async () => {
       fetched = true;
       return { ok: false, status: 500 };
     }
   });
   assert.equal(fetched, false);
+});
+
+test("runLookups is sequential: Thai then gated openFDA", async () => {
+  const order = [];
+  await runConsensusPipeline({
+    rawText: "Paracetamol",
+    parsedMedicine: { name: "Paracetamol", dosage: "500 mg" },
+    matchThai: (name) => {
+      order.push("thai");
+      return { source: "thai", name: "Paracetamol", score: 0.99 };
+    },
+    fetchImpl: async () => {
+      order.push("fda");
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          results: [{
+            openfda: { brand_name: ["Tylenol"], generic_name: ["Paracetamol"] }
+          }]
+        })
+      };
+    },
+    callJudge: async () => {
+      order.push("judge");
+      return { name: "Paracetamol", verdict: "prefer_ocr" };
+    }
+  });
+  assert.deepEqual(order, ["thai", "fda", "judge"]);
 });

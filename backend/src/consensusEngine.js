@@ -2,8 +2,7 @@ import { normalizeDrugInfoResponse, normalizeDrugQuery } from "./drugInfo.js";
 import {
   isLatinScriptName,
   matchThaiMedicine,
-  normalizeName,
-  THAI_STRONG_THRESHOLD
+  normalizeName
 } from "./thaiMedicineMatch.js";
 
 function mapOpenFdaRecord(record) {
@@ -50,43 +49,36 @@ export async function lookupOpenFdaByName(name, fetchImpl = fetch) {
   };
 }
 
-export function shouldSkipJudge(thaiResult, openFdaResult) {
-  if (!thaiResult || thaiResult.score < THAI_STRONG_THRESHOLD) return false;
-  if (!openFdaResult) return true;
-  return normalizeName(thaiResult.name) === normalizeName(openFdaResult.name);
-}
-
 export function namesAgree(a, b) {
   if (!a || !b) return false;
   return normalizeName(a) === normalizeName(b);
 }
 
 /**
- * Resolve consensus / disagreement / unverified from lookup + optional judge results.
+ * Collect named candidates from sources that returned a usable name.
+ * Judge with uncertain / empty name does not count as a source result.
  */
-export function resolveConsensus({
-  ocrName = "",
-  ocrDosage = "",
-  thaiResult = null,
-  openFdaResult = null,
-  judgeResult = null
-} = {}) {
+function collectNamedCandidates({ thaiResult, openFdaResult, judgeResult }) {
   const candidates = [];
-  if (thaiResult) {
+  if (thaiResult?.name) {
     candidates.push({
       source: "thai",
       name: thaiResult.name,
       score: thaiResult.score
     });
   }
-  if (openFdaResult) {
+  if (openFdaResult?.name) {
     candidates.push({
       source: "openfda",
       name: openFdaResult.name,
       score: openFdaResult.score ?? 1
     });
   }
-  if (judgeResult?.name) {
+  if (
+    judgeResult?.name &&
+    String(judgeResult.name).trim() &&
+    judgeResult.verdict !== "uncertain"
+  ) {
     candidates.push({
       source: "judge",
       name: judgeResult.name,
@@ -95,44 +87,44 @@ export function resolveConsensus({
       notes: judgeResult.notes ?? null
     });
   }
+  return candidates;
+}
 
-  const thai = thaiResult;
-  const fda = openFdaResult;
-  const judge = judgeResult;
-  const judgeUncertain = !judge || judge.verdict === "uncertain" || !judge.name;
-  const dosageFromJudge = judge?.dosage?.trim() ? judge.dosage.trim() : null;
+/**
+ * Agreement-based resolution. All sources are equal — no winner-picking.
+ *
+ * - 0 named results → unverified (OCR name)
+ * - 1+ results, all same normalized name → consensus suggestion
+ * - 2+ results with different names → disagreement (user picks)
+ */
+export function resolveConsensus({
+  ocrName = "",
+  ocrDosage = "",
+  thaiResult = null,
+  openFdaResult = null,
+  judgeResult = null
+} = {}) {
+  const candidates = collectNamedCandidates({ thaiResult, openFdaResult, judgeResult });
+  const dosageFromJudge =
+    judgeResult?.dosage && String(judgeResult.dosage).trim()
+      ? String(judgeResult.dosage).trim()
+      : "";
 
-  const bothDb = Boolean(thai && fda);
-  const sameDbNames = bothDb && namesAgree(thai.name, fda.name);
-
-  // Both DB hits, same name
-  if (sameDbNames) {
+  if (candidates.length === 0) {
     return {
-      status: "consensus",
-      finalName: thai.name,
-      finalDosage: dosageFromJudge || ocrDosage || "",
-      label: "verified",
+      status: "unverified",
+      finalName: ocrName || "",
+      finalDosage: ocrDosage || "",
+      label: "unverified",
       candidates
     };
   }
 
-  // Both DB hits, different names
-  if (bothDb && !sameDbNames) {
-    if (!judgeUncertain && judge.verdict && judge.verdict !== "uncertain") {
-      const pick =
-        judge.verdict === "prefer_thai"
-          ? thai.name
-          : judge.verdict === "prefer_openfda"
-            ? fda.name
-            : judge.name;
-      return {
-        status: "consensus",
-        finalName: pick,
-        finalDosage: dosageFromJudge || ocrDosage || "",
-        label: "verified",
-        candidates
-      };
-    }
+  const distinctKeys = [
+    ...new Set(candidates.map((c) => normalizeName(c.name)).filter(Boolean))
+  ];
+
+  if (distinctKeys.length > 1) {
     return {
       status: "disagreement",
       finalName: null,
@@ -142,101 +134,40 @@ export function resolveConsensus({
     };
   }
 
-  // Thai only
-  if (thai && !fda) {
-    if (judgeUncertain || namesAgree(judge?.name, thai.name) || judge?.verdict === "prefer_thai") {
-      return {
-        status: "consensus",
-        finalName: thai.name,
-        finalDosage: dosageFromJudge || ocrDosage || "",
-        label: "verified",
-        candidates
-      };
-    }
-    if (judge?.name && !namesAgree(judge.name, thai.name) && judge.verdict !== "uncertain") {
-      // Judge disagrees with sole Thai hit — surface both
-      return {
-        status: "disagreement",
-        finalName: null,
-        finalDosage: ocrDosage || "",
-        label: "conflict",
-        candidates
-      };
-    }
-    return {
-      status: "consensus",
-      finalName: thai.name,
-      finalDosage: dosageFromJudge || ocrDosage || "",
-      label: "verified",
-      candidates
-    };
+  const agreedName = candidates[0].name;
+  const sources = new Set(candidates.map((c) => c.source));
+  let label = "verified";
+  if (sources.size === 1 && sources.has("judge")) {
+    label = "ai_corrected";
+  } else if (sources.size >= 2) {
+    label = "verified";
+  } else {
+    label = "verified";
   }
 
-  // openFDA only
-  if (fda && !thai) {
-    if (judgeUncertain || namesAgree(judge?.name, fda.name) || judge?.verdict === "prefer_openfda") {
-      return {
-        status: "consensus",
-        finalName: fda.name,
-        finalDosage: dosageFromJudge || ocrDosage || "",
-        label: "verified",
-        candidates
-      };
-    }
-    if (judge?.name && !namesAgree(judge.name, fda.name) && judge.verdict !== "uncertain") {
-      return {
-        status: "disagreement",
-        finalName: null,
-        finalDosage: ocrDosage || "",
-        label: "conflict",
-        candidates
-      };
-    }
-    return {
-      status: "consensus",
-      finalName: fda.name,
-      finalDosage: dosageFromJudge || ocrDosage || "",
-      label: "verified",
-      candidates
-    };
-  }
-
-  // Judge only
-  if (!thai && !fda && judge?.name && judge.verdict !== "uncertain") {
-    return {
-      status: "consensus",
-      finalName: judge.name,
-      finalDosage: dosageFromJudge || ocrDosage || "",
-      label: "ai_corrected",
-      candidates
-    };
-  }
-
-  // Nothing verified
   return {
-    status: "unverified",
-    finalName: ocrName || "",
-    finalDosage: ocrDosage || "",
-    label: "unverified",
+    status: "consensus",
+    finalName: agreedName,
+    finalDosage: dosageFromJudge || ocrDosage || "",
+    label,
     candidates
   };
 }
 
 /**
- * Run Thai + openFDA lookups in parallel (openFDA gated by Latin script).
+ * Sequential lookups: Thai first, then gated openFDA.
+ * Order is execution order only — not a trust hierarchy.
  */
 export async function runLookups(ocrName, { fetchImpl = fetch, matchThai = matchThaiMedicine } = {}) {
-  const thaiPromise = Promise.resolve(matchThai(ocrName));
-  const fdaPromise = isLatinScriptName(ocrName)
-    ? lookupOpenFdaByName(ocrName, fetchImpl)
-    : Promise.resolve(null);
-
-  const [thaiResult, openFdaResult] = await Promise.all([thaiPromise, fdaPromise]);
+  const thaiResult = matchThai(ocrName);
+  const openFdaResult = isLatinScriptName(ocrName)
+    ? await lookupOpenFdaByName(ocrName, fetchImpl)
+    : null;
   return { thaiResult, openFdaResult };
 }
 
 /**
- * Full consensus after OCR parse. `callJudge` is optional injectable async function.
+ * Accuracy-first pipeline: Thai → openFDA (gated) → LLM judge always → agreement resolution.
  */
 export async function runConsensusPipeline({
   rawText,
@@ -248,12 +179,12 @@ export async function runConsensusPipeline({
   const ocrName = parsedMedicine?.name ?? "";
   const ocrDosage = parsedMedicine?.dosage ?? "";
 
+  // Step 2 then Step 3 — sequential, both recorded before judge.
   const { thaiResult, openFdaResult } = await runLookups(ocrName, { fetchImpl, matchThai });
 
+  // Step 4 — LLM judge runs every time when available (accuracy over speed).
   let judgeResult = null;
-  const skip = shouldSkipJudge(thaiResult, openFdaResult);
-
-  if (!skip && typeof callJudge === "function") {
+  if (typeof callJudge === "function") {
     judgeResult = await callJudge({
       rawText,
       parsedMedicine,
@@ -275,6 +206,6 @@ export async function runConsensusPipeline({
     thaiResult,
     openFdaResult,
     judgeResult,
-    judgeSkipped: skip
+    judgeSkipped: false
   };
 }
