@@ -45,8 +45,9 @@ struct ContentView: View {
         }
         .onAppear {
             #if DEBUG
-            // Keep onboarding easy to test from Xcode. This runs only once when
-            // the app launches, so Get Started can still dismiss it normally.
+            // Keep the pre-app flow easy to test from Xcode. This runs only
+            // once at launch, so both Continue and Get Started still work.
+            hasCompletedTermsPlaceholder = false
             shouldShowOnboarding = true
             #endif
         }
