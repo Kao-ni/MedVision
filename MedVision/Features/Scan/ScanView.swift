@@ -308,9 +308,7 @@ private struct ScannerFullScreenView: View {
                 camera.stop()
             }
             .onChange(of: selectedMode) { _, mode in
-                withAnimation(.easeInOut(duration: 0.28)) {
-                    camera.setMode(mode)
-                }
+                camera.setMode(mode)
             }
         }
         .ignoresSafeArea()
@@ -549,7 +547,6 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         sessionQueue.async { [weak self] in
             guard let self else { return }
             self.session.beginConfiguration()
-            self.session.sessionPreset = mode == .label ? .photo : .high
             self.metadataOutput.metadataObjectTypes = mode == .barcode
                 ? supportedBarcodeObjectTypes
                 : []
@@ -643,7 +640,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         guard !isConfigured else { return true }
 
         session.beginConfiguration()
-        session.sessionPreset = currentMode == .label ? .photo : .high
+        session.sessionPreset = .photo
 
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device),
