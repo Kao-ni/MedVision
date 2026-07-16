@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Auth
 
 struct TodayView: View {
     @Query(sort: \DoseEvent.scheduledTime) private var allEvents: [DoseEvent]

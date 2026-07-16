@@ -60,7 +60,7 @@ enum DoseSyncService {
 
     static func flush(accessToken: String) async {
         guard SupabaseConfig.isConfigured else { return }
-        var queue = loadQueue()
+        let queue = loadQueue()
         guard !queue.isEmpty else { return }
 
         var remaining: [SyncPayload] = []
