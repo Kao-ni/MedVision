@@ -67,14 +67,6 @@ struct AuthView: View {
                     messageBanner(text: info, tint: .blue, icon: "envelope.fill")
                 }
 
-                if !auth.isConfigured {
-                    messageBanner(
-                        text: "Add your Supabase URL and anon key in SupabaseSecrets.swift. See Config/AUTH_SETUP.md.",
-                        tint: .orange,
-                        icon: "gearshape.fill"
-                    )
-                }
-
                 Button {
                     Task { await viewModel.submit() }
                 } label: {
