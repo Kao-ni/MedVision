@@ -4,8 +4,13 @@ import SwiftData
 @main
 struct MedVisionApp: App {
     private static let container: ModelContainer = makeContainer()
+    private static let legacyBloodTypeKey = "profile_bloodType"
     @State private var authService = AuthService()
     @AppStorage(AppLanguage.storageKey) private var displayLanguage = "en"
+
+    init() {
+        UserDefaults.standard.removeObject(forKey: Self.legacyBloodTypeKey)
+    }
 
     var body: some Scene {
         WindowGroup {

@@ -1,8 +1,6 @@
 import UIKit
 import SwiftUI
 
-private let mvTwentyFourHourLocale = Locale(identifier: "en_GB")
-
 private struct OnboardingPage {
     let systemImage: String
     let color: Color
@@ -14,7 +12,6 @@ struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
     @AppStorage("profile_birthdayTimestamp") private var storedBirthdayTimestamp = Date().timeIntervalSince1970
-    @AppStorage("profile_bloodType") private var storedBloodType = ""
     @AppStorage("profile_allergies") private var storedAllergies = "None"
     @AppStorage("profile_conditions") private var storedConditions = "None"
     @AppStorage("meal_breakfastSeconds") private var storedBreakfastSeconds = 8 * 60 * 60
@@ -25,7 +22,6 @@ struct OnboardingView: View {
     @State private var birthDay = 15
     @State private var birthMonth = 6
     @State private var birthYear = 2000
-    @State private var bloodTypeInput = ""
     @State private var selectedAllergies: Set<String> = []
     @State private var allergyOtherText = ""
     @State private var showAllergyOther = false
@@ -67,7 +63,6 @@ struct OnboardingView: View {
         )
     ]
 
-    private let bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"]
     private let allergyLabels = [
         "Penicillin", "Peanuts", "Tree Nuts", "Shellfish", "Dairy", "Gluten",
         "Soy", "Latex", "Pollen", "Dust", "Pet Dander", "Bee Stings",
@@ -80,16 +75,14 @@ struct OnboardingView: View {
     private let months = Calendar.current.monthSymbols
 
     private var birthdayPageIndex: Int { pages.count }
-    private var bloodTypePageIndex: Int { pages.count + 1 }
-    private var allergiesPageIndex: Int { pages.count + 2 }
-    private var conditionsPageIndex: Int { pages.count + 3 }
-    private var mealTimesPageIndex: Int { pages.count + 4 }
-    private var totalPageCount: Int { pages.count + 5 }
+    private var allergiesPageIndex: Int { pages.count + 1 }
+    private var conditionsPageIndex: Int { pages.count + 2 }
+    private var mealTimesPageIndex: Int { pages.count + 3 }
+    private var totalPageCount: Int { pages.count + 4 }
 
     private var isCurrentPageValid: Bool {
         switch currentPage {
         case birthdayPageIndex: return isBirthdayValid
-        case bloodTypePageIndex: return !bloodTypeInput.isEmpty
         case allergiesPageIndex:
             return noAllergies || !selectedAllergies.isEmpty || !allergyOtherText.trimmingCharacters(in: .whitespaces).isEmpty
         case conditionsPageIndex:
@@ -106,7 +99,6 @@ struct OnboardingView: View {
                         pageView(pages[index]).tag(index)
                     }
                     birthdayEntryView.tag(birthdayPageIndex)
-                    bloodTypeEntryView.tag(bloodTypePageIndex)
                     allergiesEntryView.tag(allergiesPageIndex)
                     conditionsEntryView.tag(conditionsPageIndex)
                     mealTimesEntryView.tag(mealTimesPageIndex)
@@ -167,7 +159,6 @@ struct OnboardingView: View {
 
     private func advance() {
         if currentPage == birthdayPageIndex { persistBirthday() }
-        if currentPage == bloodTypePageIndex { storedBloodType = bloodTypeInput }
         if currentPage == allergiesPageIndex { persistAllergies() }
         if currentPage == conditionsPageIndex { persistConditions() }
 
@@ -180,7 +171,6 @@ struct OnboardingView: View {
 
     private func finish() {
         persistBirthday()
-        storedBloodType = bloodTypeInput
         persistAllergies()
         persistConditions()
         storedBreakfastSeconds = breakfastTime.secondsFromMidnight
@@ -294,45 +284,6 @@ struct OnboardingView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-    }
-
-    private var bloodTypeEntryView: some View {
-        VStack(spacing: 20) {
-            Text("What is your blood type?")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Color.mvInk)
-                .multilineTextAlignment(.center)
-                .padding(.top, 40)
-
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(bloodTypes, id: \.self) { type in
-                        Button {
-                            bloodTypeInput = type
-                        } label: {
-                            HStack {
-                                Group {
-                                    if type == "Unknown" { Text("Unknown") } else { Text(verbatim: type) }
-                                }
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(bloodTypeInput == type ? Color.mvOnAccent : Color.mvInk)
-                                Spacer()
-                                if bloodTypeInput == type {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(Color.mvOnAccent)
-                                }
-                            }
-                            .padding(.horizontal, 18)
-                            .frame(maxWidth: .infinity, minHeight: 56)
-                            .onboardingCard(selected: bloodTypeInput == type)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-        }
     }
 
     private var allergiesEntryView: some View {
@@ -528,7 +479,6 @@ struct OnboardingView: View {
                 ),
                 displayedComponents: .hourAndMinute
             )
-            .environment(\.locale, mvTwentyFourHourLocale)
             .labelsHidden()
         }
         .padding(16)

@@ -2,15 +2,12 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-private let mvTwentyFourHourLocale = Locale(identifier: "en_GB")
-
 struct ProfileView: View {
     @Environment(AuthService.self) private var auth
     @AppStorage("profile_firstName") private var firstName = "First Name"
     @AppStorage("profile_lastName") private var lastName = "Last Name"
     @AppStorage("profile_gender") private var gender = "Male"
     @AppStorage("profile_birthdayTimestamp") private var birthdayTimestamp: Double = Date().timeIntervalSince1970
-    @AppStorage("profile_bloodType") private var bloodType = "O+"
     @AppStorage("profile_allergies") private var allergies = "None"
     @AppStorage("profile_conditions") private var conditions = "None"
     @AppStorage("profile_medications") private var medications = "None"
@@ -67,7 +64,6 @@ struct ProfileView: View {
                     identityCard
 
                     infoCard(title: "Health Information", items: [
-                        ProfileInfoItem(icon: "drop.fill", tint: .mvDanger, label: "Blood Type", value: bloodType),
                         ProfileInfoItem(icon: "allergens", tint: .mvWarning, label: "Allergies", value: allergies, localizeValue: allergies == "None"),
                         ProfileInfoItem(icon: "cross.case.fill", tint: .mvAccent, label: "Conditions", value: conditions, localizeValue: conditions == "None"),
                         ProfileInfoItem(icon: "pills.fill", tint: .mvSuccess, label: "Medications", value: medications, localizeValue: medications == "None")
@@ -120,7 +116,6 @@ struct ProfileView: View {
                     lastName: $lastName,
                     gender: $gender,
                     birthdayTimestamp: $birthdayTimestamp,
-                    bloodType: $bloodType,
                     allergies: $allergies,
                     conditions: $conditions,
                     medications: $medications,
@@ -312,7 +307,6 @@ struct ProfileView: View {
                 ),
                 displayedComponents: .hourAndMinute
             )
-            .environment(\.locale, mvTwentyFourHourLocale)
             .font(.body)
             .tint(Color.mvAccent)
         }
@@ -451,7 +445,6 @@ struct EditProfileSheet: View {
     @Binding var lastName: String
     @Binding var gender: String
     @Binding var birthdayTimestamp: Double
-    @Binding var bloodType: String
     @Binding var allergies: String
     @Binding var conditions: String
     @Binding var medications: String
@@ -461,7 +454,6 @@ struct EditProfileSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let genderOptions = ["Male", "Female", "Non-binary", "Prefer not to say"]
-    let bloodTypeOptions = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"]
 
     private var birthdayBinding: Binding<Date> {
         Binding(
@@ -489,11 +481,6 @@ struct EditProfileSheet: View {
                 }
 
                 Section("Health") {
-                    Picker("Blood Type", selection: $bloodType) {
-                        ForEach(bloodTypeOptions, id: \.self) {
-                            Text(LocalizedStringKey($0))
-                        }
-                    }
                     LabeledContent {
                         TextField("None", text: $allergies)
                             .multilineTextAlignment(.trailing)

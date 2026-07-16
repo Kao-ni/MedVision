@@ -38,11 +38,14 @@ struct TodayView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("profile_firstName") private var firstName = ""
     @AppStorage(UserMealTimes.breakfastKey) private var breakfastSeconds = UserMealTimes.defaultBreakfast
     @AppStorage(UserMealTimes.lunchKey) private var lunchSeconds = UserMealTimes.defaultLunch
     @AppStorage(UserMealTimes.dinnerKey) private var dinnerSeconds = UserMealTimes.defaultDinner
     @State private var hasAppeared = false
+    @State private var selectedDate = Calendar.current.startOfDay(for: .now)
+    @State private var windowReferenceDate = Date.now
     @Environment(AuthService.self) private var auth
     private let runsStartupTasks: Bool
     private let previewMealTimes: UserMealTimes?
@@ -55,8 +58,23 @@ struct TodayView: View {
         self.previewMealTimes = previewMealTimes
     }
 
-    private var todayEvents: [DoseEvent] {
-        allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
+    private var trackerDates: [Date] {
+        WeeklyDoseTrackerLogic.mondayWeek(containing: windowReferenceDate)
+    }
+
+    private var dailySummaries: [Date: DailyDoseSummary] {
+        Dictionary(uniqueKeysWithValues: trackerDates.map { date in
+            (
+                Calendar.current.startOfDay(for: date),
+                WeeklyDoseTrackerLogic.summary(for: date, events: Array(allEvents))
+            )
+        })
+    }
+
+    private var selectedEvents: [DoseEvent] {
+        allEvents.filter {
+            Calendar.current.isDate($0.scheduledTime, inSameDayAs: selectedDate)
+        }
     }
 
     private var eventsByPeriod: [TodayTimePeriod: [DoseEvent]] {
@@ -71,14 +89,18 @@ struct TodayView: View {
             dinnerSeconds: mealTimes.dinnerSeconds
         )
         return Dictionary(
-            grouping: todayEvents.sorted { $0.scheduledTime < $1.scheduledTime },
+            grouping: selectedEvents.sorted { $0.scheduledTime < $1.scheduledTime },
             by: { classifier.period(for: $0.scheduledTime) }
         )
     }
 
-    private var takenCount: Int { todayEvents.filter { $0.status == .complete }.count }
-    private var totalCount: Int { todayEvents.count }
+    private var takenCount: Int { selectedEvents.filter { $0.status == .complete }.count }
+    private var totalCount: Int { selectedEvents.count }
     private var progress: Double { totalCount > 0 ? Double(takenCount) / Double(totalCount) : 0 }
+    private var selectedDateIsToday: Bool { Calendar.current.isDateInToday(selectedDate) }
+    private var selectedDateIsPast: Bool {
+        selectedDate < Calendar.current.startOfDay(for: .now)
+    }
 
     var body: some View {
         NavigationStack {
@@ -86,8 +108,13 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     header
 
-                    if !todayEvents.isEmpty {
-                        ProgressCard(taken: takenCount, total: totalCount, progress: progress)
+                    if !selectedEvents.isEmpty {
+                        ProgressCard(
+                            taken: takenCount,
+                            total: totalCount,
+                            progress: progress,
+                            isToday: selectedDateIsToday
+                        )
                     }
 
                     ForEach(TodayTimePeriod.allCases) { period in
@@ -109,7 +136,10 @@ struct TodayView: View {
             .task {
                 if runsStartupTasks {
                     DoseSyncService.mirrorMissedStatuses(events: Array(allEvents))
-                    generateTodayEventsIfNeeded()
+                    DoseEventWindowScheduler.ensureCurrentWindow(
+                        medicines: Array(allMedicines),
+                        in: context
+                    )
                     await syncTodayToCloud()
                 }
                 if reduceMotion {
@@ -120,27 +150,59 @@ struct TodayView: View {
                     }
                 }
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                refreshDateWindow()
+                if runsStartupTasks {
+                    DoseSyncService.mirrorMissedStatuses(events: Array(allEvents))
+                    DoseEventWindowScheduler.ensureCurrentWindow(
+                        medicines: Array(allMedicines),
+                        in: context
+                    )
+                }
+            }
         }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(greeting)
                 .font(.subheadline)
                 .foregroundStyle(Color.mvSubtle)
 
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("Today")
-                Text(
-                    Date.now,
-                    format: Date.FormatStyle(date: .abbreviated, time: .omitted)
-                        .locale(locale)
-                )
-            }
-            .font(.system(size: 28, weight: .bold, design: .rounded))
-            .foregroundStyle(Color.mvInk)
-            .accessibilityElement(children: .combine)
+            Text(selectedDateTitle)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.mvInk)
+
+            WeeklyDoseStrip(
+                dates: trackerDates,
+                selectedDate: $selectedDate,
+                summaries: dailySummaries,
+                onTapDay: toggleDayCompletion
+            )
+            .padding(.top, 8)
         }
+    }
+
+    private var selectedDateTitle: String {
+        let day = selectedDate.formatted(
+            Date.FormatStyle().month(.wide).day().locale(locale)
+        )
+        if selectedDateIsToday {
+            return AppLanguage.localized(
+                "today_date_format",
+                locale: locale,
+                arguments: [day]
+            )
+        }
+        let weekday = selectedDate.formatted(
+            Date.FormatStyle().weekday(.wide).locale(locale)
+        )
+        return AppLanguage.localized(
+            "selected_date_format",
+            locale: locale,
+            arguments: [weekday, day]
+        )
     }
 
     private var greeting: String {
@@ -179,7 +241,15 @@ struct TodayView: View {
             }
 
             if events.isEmpty {
-                Label("No doses scheduled", systemImage: "minus.circle")
+                Label {
+                    Text(
+                        selectedDateIsPast
+                            ? LocalizedStringKey("No dose records for this day")
+                            : LocalizedStringKey("No doses scheduled")
+                    )
+                } icon: {
+                    Image(systemName: "minus.circle")
+                }
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Color.mvSubtle)
                     .padding(15)
@@ -189,42 +259,57 @@ struct TodayView: View {
                 ForEach(events) { event in
                     TodayDoseCard(
                         event: event,
-                        isOverdue: event.status == .pending && event.scheduledTime < .now
+                        isOverdue: event.status == .pending && event.scheduledTime < .now,
+                        selectedDate: selectedDate
                     )
                 }
             }
         }
     }
 
-    private func generateTodayEventsIfNeeded() {
+    private func refreshDateWindow() {
+        let today = Calendar.current.startOfDay(for: .now)
+        windowReferenceDate = today
+        if !trackerDates.contains(where: { Calendar.current.isDate($0, inSameDayAs: selectedDate) }) {
+            selectedDate = today
+        }
+    }
+
+    private func toggleDayCompletion(_ date: Date) {
         let calendar = Calendar.current
-        for medicine in allMedicines {
-            for time in medicine.scheduledTimes {
-                let comps = calendar.dateComponents([.hour, .minute], from: time)
-                guard let scheduled = calendar.date(
-                    bySettingHour: comps.hour ?? 0,
-                    minute: comps.minute ?? 0,
-                    second: 0,
-                    of: Date()
-                ) else { continue }
+        let day = calendar.startOfDay(for: date)
+        let today = calendar.startOfDay(for: .now)
+        guard day <= today else { return }
 
-                let exists = medicine.doseEvents.contains {
-                    calendar.isDateInToday($0.scheduledTime) &&
-                    calendar.component(.hour, from: $0.scheduledTime) == comps.hour &&
-                    calendar.component(.minute, from: $0.scheduledTime) == comps.minute
-                }
+        let events = allEvents.filter {
+            calendar.isDate($0.scheduledTime, inSameDayAs: day)
+        }
+        guard !events.isEmpty else { return }
 
-                if !exists {
-                    context.insert(DoseEvent(scheduledTime: scheduled, status: .pending, medicine: medicine))
-                }
+        let shouldComplete = !events.allSatisfy { $0.status == .complete }
+        for event in events {
+            if shouldComplete {
+                event.status = .complete
+                event.takenTime = calendar.isDateInToday(day) ? .now : event.scheduledTime
+            } else {
+                event.status = .pending
+                event.takenTime = nil
             }
         }
+
+        Task { await syncDoseEvents(events) }
     }
 
     private func syncTodayToCloud() async {
         guard !auth.isGuest else { return }
         let token = auth.session?.accessToken
+        let todayEvents = allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
         await DoseSyncService.syncEvents(todayEvents, accessToken: token)
+    }
+
+    private func syncDoseEvents(_ events: [DoseEvent]) async {
+        guard !auth.isGuest else { return }
+        await DoseSyncService.syncEvents(events, accessToken: auth.session?.accessToken)
     }
 
 }
@@ -233,6 +318,7 @@ private struct ProgressCard: View {
     let taken: Int
     let total: Int
     let progress: Double
+    let isToday: Bool
     @Environment(\.locale) private var locale
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -246,7 +332,7 @@ private struct ProgressCard: View {
                         allDone
                             ? AppLanguage.localized("All done!", locale: locale)
                             : AppLanguage.localized(
-                                "progress_taken_format",
+                                isToday ? "progress_taken_format" : "progress_taken_day_format",
                                 locale: locale,
                                 arguments: [taken, total]
                             )
@@ -316,8 +402,23 @@ private struct ProgressCard: View {
 private struct TodayDoseCard: View {
     let event: DoseEvent
     let isOverdue: Bool
+    let selectedDate: Date
     @Environment(\.locale) private var locale
     @Environment(AuthService.self) private var auth
+    @State private var showTakenTimePicker = false
+    @State private var draftTakenTime = Date.now
+
+    private var calendar: Calendar { .current }
+    private var selectedDayStart: Date { calendar.startOfDay(for: selectedDate) }
+    private var todayStart: Date { calendar.startOfDay(for: .now) }
+    private var isFutureDay: Bool { selectedDayStart > todayStart }
+    private var isPastDay: Bool { selectedDayStart < todayStart }
+
+    private var takenTimeRange: ClosedRange<Date> {
+        let end = calendar.date(byAdding: .day, value: 1, to: selectedDayStart)?
+            .addingTimeInterval(-1) ?? selectedDayStart
+        return selectedDayStart...end
+    }
 
     var body: some View {
         VStack(spacing: 13) {
@@ -365,67 +466,138 @@ private struct TodayDoseCard: View {
                 }
             }
 
-            if event.status == .pending {
-                HStack(spacing: 10) {
-                    Button {
-                        event.status = .omitted
-                        event.takenTime = nil
-                        Task { await syncDose() }
-                    } label: {
-                        Text("Skip")
-                    }
-                    .buttonStyle(MVSecondaryButtonStyle(tint: .mvSubtle))
-
-                    Button {
-                        event.status = .complete
-                        event.takenTime = Date()
-                        Task { await syncDose() }
-                    } label: {
-                        Label("Take Now", systemImage: "checkmark")
-                    }
-                    .buttonStyle(MVSecondaryButtonStyle(tint: isOverdue ? .mvDanger : .mvSuccess))
-                }
-            } else {
+            if isFutureDay {
                 HStack {
                     MVStatusBadge(
-                        title: LocalizedStringKey(event.status.localizationKey),
-                        systemImage: event.status.systemImage,
-                        tint: event.status.color
+                        title: "Upcoming",
+                        systemImage: "clock",
+                        tint: .mvAccent
                     )
-                    if let takenTime = event.takenTime, event.status == .complete {
-                        Text(
-                            AppLanguage.localized(
-                                "taken_at_format",
-                                locale: locale,
-                                arguments: [
-                                    takenTime.formatted(
-                                        Date.FormatStyle(date: .omitted, time: .shortened)
-                                            .locale(locale)
-                                    )
-                                ]
-                            )
-                        )
+                    Spacer()
+                    Text("Future doses can be updated on their scheduled day.")
                         .font(.caption)
                         .foregroundStyle(Color.mvSubtle)
-                    }
-                    Spacer()
-                    Button {
-                        event.status = .pending
-                        event.takenTime = nil
-                        Task { await syncDose() }
-                    } label: {
-                        Label("Undo", systemImage: "arrow.uturn.backward")
-                            .labelStyle(.iconOnly)
-                            .frame(width: 36, height: 36)
-                    }
-                    .foregroundStyle(Color.mvAccent)
-                    .accessibilityLabel("Undo")
+                        .multilineTextAlignment(.trailing)
                 }
+            } else if event.status == .complete {
+                completedStatusRow
+            } else {
+                actionButtons
             }
         }
         .padding(15)
         .glassCard()
         .accessibilityElement(children: .contain)
+        .sheet(isPresented: $showTakenTimePicker) {
+            pastTakenTimeSheet
+                .presentationDetents([.medium])
+        }
+    }
+
+    private var completedStatusRow: some View {
+        HStack {
+            MVStatusBadge(
+                title: LocalizedStringKey(event.status.localizationKey),
+                systemImage: event.status.systemImage,
+                tint: event.status.color
+            )
+            if let takenTime = event.takenTime {
+                Text(
+                    AppLanguage.localized(
+                        "taken_at_format",
+                        locale: locale,
+                        arguments: [
+                            takenTime.formatted(
+                                Date.FormatStyle(date: .omitted, time: .shortened)
+                                    .locale(locale)
+                            )
+                        ]
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(Color.mvSubtle)
+            }
+            Spacer()
+            Button {
+                event.status = .pending
+                event.takenTime = nil
+                Task { await syncDose() }
+            } label: {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 36, height: 36)
+            }
+            .foregroundStyle(Color.mvAccent)
+            .accessibilityLabel("Undo")
+        }
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 10) {
+            Button {
+                event.status = .omitted
+                event.takenTime = nil
+                Task { await syncDose() }
+            } label: {
+                Text("Skip")
+            }
+            .buttonStyle(MVSecondaryButtonStyle(tint: .mvSubtle))
+
+            Button {
+                markTaken()
+            } label: {
+                Label {
+                    Text(isPastDay ? LocalizedStringKey("Mark Taken") : LocalizedStringKey("Take Now"))
+                } icon: {
+                    Image(systemName: "checkmark")
+                }
+            }
+            .buttonStyle(MVSecondaryButtonStyle(tint: isOverdue ? .mvDanger : .mvSuccess))
+        }
+    }
+
+    private var pastTakenTimeSheet: some View {
+        NavigationStack {
+            Form {
+                DatePicker(
+                    "Taken time",
+                    selection: $draftTakenTime,
+                    in: takenTimeRange,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.compact)
+            }
+            .scrollContentBackground(.hidden)
+            .mvScreenBackground()
+            .navigationTitle("When was it taken?")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showTakenTimePicker = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        event.status = .complete
+                        event.takenTime = draftTakenTime
+                        showTakenTimePicker = false
+                        Task { await syncDose() }
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private func markTaken() {
+        if isPastDay {
+            let preferred = event.takenTime ?? event.scheduledTime
+            draftTakenTime = min(max(preferred, takenTimeRange.lowerBound), takenTimeRange.upperBound)
+            showTakenTimePicker = true
+        } else {
+            event.status = .complete
+            event.takenTime = .now
+            Task { await syncDose() }
+        }
     }
 
     private func syncDose() async {
