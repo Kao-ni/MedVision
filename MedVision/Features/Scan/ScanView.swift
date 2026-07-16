@@ -1,4 +1,5 @@
 @preconcurrency import AVFoundation
+import Auth
 import CoreImage
 import ImageIO
 import PhotosUI
