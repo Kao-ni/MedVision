@@ -66,15 +66,31 @@ struct AddMedicineView: View {
                 hint: p.scheduleHint,
                 meals: .loadFromDefaults()
             )
-            _name          = State(initialValue: p.name)
-            _dosage        = State(initialValue: p.dosage)
+            let resolvedName: String = {
+                if let resolution = p.resolution {
+                    switch resolution.status {
+                    case .consensus:
+                        return resolution.finalName?.isEmpty == false ? resolution.finalName! : p.name
+                    case .disagreement, .unverified:
+                        return p.name
+                    }
+                }
+                return p.name
+            }()
+            let resolvedDosage: String = {
+                if let resolution = p.resolution, resolution.status == .consensus,
+                   let dosage = resolution.finalDosage, !dosage.isEmpty {
+                    return dosage
+                }
+                return p.dosage
+            }()
+            _name          = State(initialValue: resolvedName)
+            _dosage        = State(initialValue: resolvedDosage)
             _form          = State(initialValue: p.form)
             _notes         = State(initialValue: p.notes)
             _scheduledTimes = State(initialValue: suggestion.times)
             _frequencyNote = State(initialValue: suggestion.frequencyNote)
             _barcode       = State(initialValue: scannedBarcode ?? "")
-            _scheduledTimes = State(initialValue: [])
-            _frequencyNote = State(initialValue: "")
             _photoData     = State(initialValue: p.photoData ?? initialPhotoData)
         } else {
             _name          = State(initialValue: "")
@@ -108,6 +124,33 @@ struct AddMedicineView: View {
                             .foregroundStyle(.secondary)
                     }
                     .listRowBackground(Color.blue.opacity(0.07))
+
+                    if let resolution = prefilled?.resolution {
+                        resolutionSection(resolution)
+                    }
+
+                    if prefilled?.fieldConfidence.hasUncertainFields == true {
+                        Section {
+                            Label(
+                                "Some fields may be inaccurate. Please double-check items marked below.",
+                                systemImage: "exclamationmark.circle.fill"
+                            )
+                            .font(.subheadline)
+                            .foregroundStyle(.orange)
+                        }
+                        .listRowBackground(Color.orange.opacity(0.08))
+                    }
+
+                    if let warnings = prefilled?.warnings, !warnings.isEmpty {
+                        Section("Scan Warnings") {
+                            ForEach(warnings, id: \.self) { warning in
+                                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                        .listRowBackground(Color.orange.opacity(0.08))
+                    }
                 }
 
                 if isBarcodeResult {
@@ -127,7 +170,7 @@ struct AddMedicineView: View {
                             .submitLabel(.next)
                             .onSubmit { focusedField = .dosage }
                     } label: {
-                        Text("Name")
+                        ocrFieldLabel("Name", confidence: prefilled?.fieldConfidence.name)
                     }
 
                     LabeledContent {
@@ -137,7 +180,7 @@ struct AddMedicineView: View {
                             .submitLabel(.next)
                             .onSubmit { focusedField = .barcode }
                     } label: {
-                        Text("Dosage")
+                        ocrFieldLabel("Dosage", confidence: prefilled?.fieldConfidence.dosage)
                     }
 
                     LabeledContent {
@@ -152,10 +195,12 @@ struct AddMedicineView: View {
                         Text("Barcode")
                     }
 
-                    Picker("Form", selection: $form) {
+                    Picker(selection: $form) {
                         ForEach(MedicineForm.allCases, id: \.self) { f in
                             Text(LocalizedStringKey(f.localizationKey)).tag(f)
                         }
+                    } label: {
+                        ocrFieldLabel("Form", confidence: prefilled?.fieldConfidence.form)
                     }
                 }
 
@@ -269,6 +314,96 @@ struct AddMedicineView: View {
                     Label("Remove Photo", systemImage: "trash")
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func resolutionSection(_ resolution: MedicineResolution) -> some View {
+        switch resolution.status {
+        case .consensus:
+            Section {
+                Label(
+                    resolution.label == "ai_corrected"
+                        ? "AI-corrected name (not found in local lists). Please confirm before saving."
+                        : "Verified match",
+                    systemImage: resolution.label == "ai_corrected"
+                        ? "sparkles"
+                        : "checkmark.seal.fill"
+                )
+                .font(.subheadline)
+                .foregroundStyle(resolution.label == "ai_corrected" ? .blue : .green)
+            }
+            .listRowBackground(
+                (resolution.label == "ai_corrected" ? Color.blue : Color.green).opacity(0.08)
+            )
+
+        case .disagreement:
+            Section("Sources Disagree") {
+                Label(
+                    "Sources disagree on the medicine name. Pick one or type your own.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.subheadline)
+                .foregroundStyle(.red)
+
+                ForEach(uniqueNameCandidates(resolution.candidates)) { candidate in
+                    Button {
+                        name = candidate.name
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(candidate.name)
+                                    .foregroundStyle(.primary)
+                                Text(candidate.source.uppercased())
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if name == candidate.name {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                }
+            }
+            .listRowBackground(Color.red.opacity(0.08))
+
+        case .unverified:
+            Section {
+                Label(
+                    "Could not verify this medicine. Please check the name carefully.",
+                    systemImage: "exclamationmark.circle.fill"
+                )
+                .font(.subheadline)
+                .foregroundStyle(.orange)
+            }
+            .listRowBackground(Color.orange.opacity(0.08))
+        }
+    }
+
+    private func uniqueNameCandidates(_ candidates: [ResolutionCandidate]) -> [ResolutionCandidate] {
+        var seen = Set<String>()
+        var result: [ResolutionCandidate] = []
+        for candidate in candidates {
+            let key = candidate.name.lowercased()
+            guard seen.insert(key).inserted else { continue }
+            result.append(candidate)
+        }
+        return result
+    }
+
+    @ViewBuilder
+    private func ocrFieldLabel(_ title: LocalizedStringKey, confidence: RecognitionConfidence?) -> some View {
+        if isOCRResult, let confidence, confidence != .high {
+            HStack(spacing: 4) {
+                Text(title)
+                Image(systemName: confidence == .low ? "exclamationmark.triangle.fill" : "questionmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(confidence == .low ? .orange : .yellow)
+            }
+        } else {
+            Text(title)
         }
     }
 

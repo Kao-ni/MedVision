@@ -193,7 +193,16 @@
 "Centre the label inside the frame" = "Centre the label inside the frame";
 "Centre the barcode inside the frame" = "Centre the barcode inside the frame";
 "Scanning label..." = "Scanning label...";
+"Reading label..." = "Reading label...";
+"Checking medicine lists..." = "Checking medicine lists...";
+"Verifying details..." = "Verifying details...";
 "Reading barcode..." = "Reading barcode...";
+"Sign in to scan medicine labels with cloud recognition." = "Sign in to scan medicine labels with cloud recognition.";
+"Verified match" = "Verified match";
+"Sources Disagree" = "Sources Disagree";
+"Sources disagree on the medicine name. Pick one or type your own." = "Sources disagree on the medicine name. Pick one or type your own.";
+"Could not verify this medicine. Please check the name carefully." = "Could not verify this medicine. Please check the name carefully.";
+"AI-corrected name (not found in local lists). Please confirm before saving." = "AI-corrected name (not found in local lists). Please confirm before saving.";
 "Label captured!" = "Label captured!";
 "Barcode found!" = "Barcode found!";
 "Tilt the camera - hold it flat above the label" = "Tilt the camera - hold it flat above the label";
