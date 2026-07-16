@@ -95,10 +95,10 @@ struct RecognitionService {
                     onStage: onStage
                 )
             } catch {
-                // Fall through to client OCR when edge function is unreachable.
+                // Fall through to client OCR + local consensus when edge function is unreachable.
                 if PrototypeOCRConfig.isConfigured {
                     onStage?(.readingLabel)
-                    return try await recognizeViaClient(imageData: imageData)
+                    return try await recognizeViaClient(imageData: imageData, onStage: onStage)
                 }
                 throw error
             }
@@ -111,8 +111,9 @@ struct RecognitionService {
             throw RecognitionError.notConfigured
         }
 
+        // Guest / unsigned: client Typhoon OCR + on-device consensus (no Supabase auth required).
         onStage?(.readingLabel)
-        return try await recognizeViaClient(imageData: imageData)
+        return try await recognizeViaClient(imageData: imageData, onStage: onStage)
     }
 
     private func recognizeViaBackend(
@@ -273,7 +274,10 @@ struct RecognitionService {
         )
     }
 
-    private func recognizeViaClient(imageData: Data) async throws -> RecognizedMedicine {
+    private func recognizeViaClient(
+        imageData: Data,
+        onStage: ((RecognitionStage) -> Void)? = nil
+    ) async throws -> RecognizedMedicine {
         let rawText: String
         do {
             rawText = try await performOCR(imageData: imageData)
@@ -292,7 +296,123 @@ struct RecognitionService {
             throw RecognitionError.networkError(error)
         }
 
-        return try parseRecognizedMedicine(from: structuredJSON, photoData: imageData)
+        var medicine = try parseRecognizedMedicine(from: structuredJSON, photoData: imageData)
+
+        onStage?(.checkingLists)
+        let resolution = await LocalConsensusEngine.run(
+            ocrName: medicine.name,
+            ocrDosage: medicine.dosage
+        ) { thai, openFda in
+            onStage?(.verifyingDetails)
+            return await self.callLocalJudge(
+                rawText: rawText,
+                medicine: medicine,
+                thai: thai,
+                openFda: openFda
+            )
+        }
+
+        medicine.resolution = resolution
+        if resolution.status == .consensus {
+            if let finalName = resolution.finalName, !finalName.isEmpty {
+                medicine.name = finalName
+            }
+            if let finalDosage = resolution.finalDosage, !finalDosage.isEmpty {
+                medicine.dosage = finalDosage
+            }
+        } else if resolution.status == .unverified {
+            if let finalName = resolution.finalName, !finalName.isEmpty {
+                medicine.name = finalName
+            }
+        }
+
+        return medicine
+    }
+
+    private func callLocalJudge(
+        rawText: String,
+        medicine: RecognizedMedicine,
+        thai: LocalConsensusEngine.MatchResult?,
+        openFda: LocalConsensusEngine.MatchResult?
+    ) async -> LocalConsensusEngine.JudgeResult? {
+        guard PrototypeOCRConfig.isConfigured else { return nil }
+
+        let endpoint = PrototypeOCRConfig.baseURL.appendingPathComponent("chat/completions")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 60
+
+        let prompt = """
+        You are a medicine-label arbitrator for a reminder app used in Thailand.
+        Decide the best medicine name and fix obvious OCR dosage typos (e.g. 5Omg -> 50mg).
+        Do NOT invent a drug unsupported by the OCR or suggestions.
+        Return STRICT JSON ONLY:
+        {
+          "name": string | null,
+          "dosage": string | null,
+          "verdict": "prefer_thai" | "prefer_openfda" | "prefer_ocr" | "uncertain",
+          "notes": string
+        }
+
+        RAW OCR:
+        \(rawText)
+
+        PARSED:
+        name=\(medicine.name), dosage=\(medicine.dosage), form=\(medicine.form.rawValue)
+
+        THAI LIST:
+        \(thai.map { "\($0.name) score=\($0.score)" } ?? "null")
+
+        OPENFDA:
+        \(openFda.map { "\($0.name) score=\($0.score)" } ?? "null")
+        """
+
+        let body: [String: Any] = [
+            "model": PrototypeOCRConfig.parseModel,
+            "max_tokens": 300,
+            "messages": [
+                [
+                    "role": "system",
+                    "content": "You arbitrate medicine name candidates. Return strict JSON only."
+                ],
+                ["role": "user", "content": prompt]
+            ]
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
+                  let text = extractMessageContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !text.isEmpty else {
+                return LocalConsensusEngine.JudgeResult(name: nil, dosage: nil, verdict: "uncertain")
+            }
+
+            let cleaned = text
+                .replacingOccurrences(of: #"^```json\s*"#, with: "", options: .regularExpression)
+                .replacingOccurrences(of: #"^```\s*"#, with: "", options: .regularExpression)
+                .replacingOccurrences(of: #"\s*```$"#, with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard let jsonData = cleaned.data(using: .utf8),
+                  let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+                return LocalConsensusEngine.JudgeResult(name: nil, dosage: nil, verdict: "uncertain")
+            }
+
+            let name = (json["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let dosage = (json["dosage"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let verdict = (json["verdict"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "uncertain"
+
+            return LocalConsensusEngine.JudgeResult(
+                name: (name?.isEmpty == false) ? name : nil,
+                dosage: (dosage?.isEmpty == false) ? dosage : nil,
+                verdict: verdict
+            )
+        } catch {
+            return LocalConsensusEngine.JudgeResult(name: nil, dosage: nil, verdict: "uncertain")
+        }
     }
 
     // Sends the image to the OCR model and returns the raw extracted text.
