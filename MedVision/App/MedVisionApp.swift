@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct MedVisionApp: App {
     private static let container: ModelContainer = makeContainer()
+    @State private var authService = AuthService()
 
     var body: some Scene {
         WindowGroup {

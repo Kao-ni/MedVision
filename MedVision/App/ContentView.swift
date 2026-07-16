@@ -23,50 +23,6 @@ struct ContentView: View {
                     .task {
                         self.authViewModel = AuthViewModel(auth: auth)
                     }
-            } else {
-                TabView(selection: $selectedTab) {
-                    TodayView()
-                        .tabItem { Label("Today", systemImage: "sun.horizon") }
-                        .tag(0)
-                    MedicinesView()
-                        .tabItem { Label("Medicines", systemImage: "pills") }
-                        .tag(1)
-                    Color.clear
-                        .tabItem { Label("Scan", systemImage: "document.viewfinder") }
-                        .tag(2)
-                    HistoryView()
-                        .tabItem { Label("History", systemImage: "clock") }
-                        .tag(3)
-                    ProfileView()
-                        .tabItem { Label("Profile", systemImage: "person.crop.circle") }
-                        .tag(4)
-                }
-                .onChange(of: selectedTab) { _, tab in
-                    if tab != 2 { previousTab = tab }
-                    showScanCamera = tab == 2
-                }
-                .fullScreenCover(isPresented: $showScanCamera, onDismiss: {
-                    selectedTab = previousTab
-                }) {
-                    ScanView(
-                        showCamera: $showScanCamera,
-                        onClose: {
-                            selectedTab = previousTab
-                            showScanCamera = false
-                        }
-                    )
-                        .ignoresSafeArea()
-                }
-                .task {
-                    await NotificationService.shared.requestPermission()
-                }
-                .sheet(isPresented: Binding(
-                    get: { !showSplash && shouldShowOnboarding },
-                    set: { shouldShowOnboarding = $0 }
-                )) {
-                    OnboardingView()
-                        .interactiveDismissDisabled(true)
-                }
             }
         }
         .task {
@@ -79,17 +35,38 @@ struct ContentView: View {
     }
 
     private var mainTabs: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             TodayView()
                 .tabItem { Label("Today", systemImage: "sun.horizon") }
+                .tag(0)
             MedicinesView()
                 .tabItem { Label("Medicines", systemImage: "pills") }
-            ScanView()
+                .tag(1)
+            Color.clear
                 .tabItem { Label("Scan", systemImage: "document.viewfinder") }
+                .tag(2)
             HistoryView()
                 .tabItem { Label("History", systemImage: "clock") }
+                .tag(3)
             ProfileView()
                 .tabItem { Label("Profile", systemImage: "person.crop.circle") }
+                .tag(4)
+        }
+        .onChange(of: selectedTab) { _, tab in
+            if tab != 2 { previousTab = tab }
+            showScanCamera = tab == 2
+        }
+        .fullScreenCover(isPresented: $showScanCamera, onDismiss: {
+            selectedTab = previousTab
+        }) {
+            ScanView(
+                showCamera: $showScanCamera,
+                onClose: {
+                    selectedTab = previousTab
+                    showScanCamera = false
+                }
+            )
+            .ignoresSafeArea()
         }
         .task {
             await NotificationService.shared.requestPermission()
