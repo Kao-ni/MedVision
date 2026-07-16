@@ -2,9 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct ContentView: View {
-    @Environment(AuthService.self) private var auth
     @State private var showSplash = true
-    @State private var authViewModel: AuthViewModel?
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
     @State private var selectedTab = 0
     @State private var showScanCamera = false
@@ -12,28 +10,16 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            if showSplash || auth.isRestoringSession {
+            if showSplash {
                 SplashScreenView()
-            } else if auth.isSignedIn {
-                if shouldShowOnboarding {
-                    OnboardingView()
-                        .transition(.opacity)
-                } else {
-                    mainTabs
-                }
-            } else if let authViewModel {
-                AuthView(viewModel: authViewModel)
+            } else if shouldShowOnboarding {
+                OnboardingView()
+                    .transition(.opacity)
             } else {
-                SplashScreenView()
-                    .task {
-                        self.authViewModel = AuthViewModel(auth: auth)
-                    }
+                mainTabs
             }
         }
         .task {
-            if authViewModel == nil {
-                authViewModel = AuthViewModel(auth: auth)
-            }
             try? await Task.sleep(for: .seconds(1.5))
             withAnimation { showSplash = false }
         }
@@ -88,5 +74,4 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environment(AuthService())
 }
