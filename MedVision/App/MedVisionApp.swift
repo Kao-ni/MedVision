@@ -8,6 +8,10 @@ struct MedVisionApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(authService)
+                .onOpenURL { url in
+                    authService.handleOpenURL(url)
+                }
         }
         .modelContainer(Self.container)
     }

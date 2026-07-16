@@ -23,9 +23,13 @@ file_size_limit = "10MiB"
 [auth]
 enabled = true
 site_url = "http://localhost"
-additional_redirect_urls = ["medvision://auth/callback"]
+additional_redirect_urls = [
+  "medvision://auth/callback",
+  "com.Kao.MedVision://login-callback"
+]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
+enable_signup = true
 
 [edge_runtime]
 enabled = true

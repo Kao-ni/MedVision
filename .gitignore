@@ -33,3 +33,6 @@ Carthage/Build/
 *.xcconfig
 Secrets.swift
 *Secrets.swift
+.env
+.env.*
+!.env.example
