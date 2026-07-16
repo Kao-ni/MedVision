@@ -8,7 +8,7 @@ struct ThaiMedicineEntry {
 }
 
 enum ThaiMedicineCatalog {
-    static let all: [ThaiMedicineEntry] = [
+    nonisolated static let all: [ThaiMedicineEntry] = [
         .init(name: "Sara", aliases: ["ซาร่า", "sara"], generic: "paracetamol", form: "tablet"),
         .init(name: "Tylenol", aliases: ["tylenol"], generic: "paracetamol", form: "tablet"),
         .init(name: "Paracetamol", aliases: ["พาราเซตามอล", "acetaminophen", "para"], generic: "paracetamol", form: "tablet"),

@@ -3,7 +3,7 @@ import Foundation
 /// On-device consensus for guest / offline OCR — mirrors backend consensusEngine.js
 /// Accuracy-first: Thai → gated openFDA → LLM judge always → agreement resolution.
 enum LocalConsensusEngine {
-    static let hitThreshold = 0.85
+    nonisolated static let hitThreshold = 0.85
 
     struct MatchResult {
         var source: String
@@ -17,7 +17,7 @@ enum LocalConsensusEngine {
         var verdict: String
     }
 
-    static func normalizeName(_ input: String) -> String {
+    nonisolated static func normalizeName(_ input: String) -> String {
         var text = input.lowercased()
         text = text.replacingOccurrences(of: #"[()\[\],;:|/\\]"#, with: " ", options: .regularExpression)
         text = text.replacingOccurrences(
@@ -34,13 +34,13 @@ enum LocalConsensusEngine {
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func isLatinScriptName(_ name: String) -> Bool {
+    nonisolated static func isLatinScriptName(_ name: String) -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
         return trimmed.range(of: #"^[a-zA-Z0-9\s.\-()/]+$"#, options: .regularExpression) != nil
     }
 
-    static func matchThaiMedicine(_ name: String) -> MatchResult? {
+    nonisolated static func matchThaiMedicine(_ name: String) -> MatchResult? {
         let query = normalizeName(name)
         guard !query.isEmpty else { return nil }
 
@@ -62,7 +62,7 @@ enum LocalConsensusEngine {
     }
 
     /// Agreement-based resolution. All sources equal — no winner-picking on conflict.
-    static func resolve(
+    nonisolated static func resolve(
         ocrName: String,
         ocrDosage: String,
         thai: MatchResult?,
@@ -127,7 +127,7 @@ enum LocalConsensusEngine {
         )
     }
 
-    static func lookupOpenFda(name: String) async -> MatchResult? {
+    nonisolated static func lookupOpenFda(name: String) async -> MatchResult? {
         guard isLatinScriptName(name) else { return nil }
         let query = name
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -165,7 +165,7 @@ enum LocalConsensusEngine {
     }
 
     /// Sequential: Thai → gated openFDA → judge always → resolve by agreement.
-    static func run(
+    nonisolated static func run(
         ocrName: String,
         ocrDosage: String,
         callJudge: ((MatchResult?, MatchResult?) async -> JudgeResult?)? = nil
@@ -189,7 +189,7 @@ enum LocalConsensusEngine {
 
     // MARK: - Jaro-Winkler
 
-    private static func jaroWinkler(_ s1: String, _ s2: String) -> Double {
+    nonisolated private static func jaroWinkler(_ s1: String, _ s2: String) -> Double {
         let a = Array(s1)
         let b = Array(s2)
         if a == b { return 1 }
