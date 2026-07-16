@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Auth
 
 struct TodayView: View {
     @Query(sort: \DoseEvent.scheduledTime) private var allEvents: [DoseEvent]
@@ -9,6 +10,7 @@ struct TodayView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("profile_firstName") private var firstName = ""
     @State private var hasAppeared = false
+    @Environment(AuthService.self) private var auth
 
     private var todayEvents: [DoseEvent] {
         allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
@@ -190,6 +192,13 @@ struct TodayView: View {
             }
         }
     }
+
+    private func syncTodayToCloud() async {
+        guard !auth.isGuest else { return }
+        let token = auth.session?.accessToken
+        await DoseSyncService.syncEvents(todayEvents, accessToken: token)
+    }
+
 }
 
 private struct ProgressCard: View {
@@ -280,6 +289,7 @@ private struct TodayDoseCard: View {
     let event: DoseEvent
     let isOverdue: Bool
     @Environment(\.locale) private var locale
+    @Environment(AuthService.self) private var auth
 
     var body: some View {
         VStack(spacing: 13) {
@@ -332,6 +342,7 @@ private struct TodayDoseCard: View {
                     Button {
                         event.status = .omitted
                         event.takenTime = nil
+                        Task { await syncDose() }
                     } label: {
                         Text("Skip")
                     }
@@ -340,6 +351,7 @@ private struct TodayDoseCard: View {
                     Button {
                         event.status = .complete
                         event.takenTime = Date()
+                        Task { await syncDose() }
                     } label: {
                         Label("Take Now", systemImage: "checkmark")
                     }
@@ -386,9 +398,15 @@ private struct TodayDoseCard: View {
         .glassCard()
         .accessibilityElement(children: .contain)
     }
+
+    private func syncDose() async {
+        guard !auth.isGuest else { return }
+        await DoseSyncService.syncEvent(event, accessToken: auth.session?.accessToken)
+    }
 }
 
 #Preview {
     TodayView()
+        .environment(AuthService())
         .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
 }

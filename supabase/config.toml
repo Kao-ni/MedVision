@@ -34,3 +34,7 @@ enable_signup = true
 [edge_runtime]
 enabled = true
 policy = "oneshot"
+
+# LINE sends no Supabase JWT — must stay off for webhook verification.
+[functions.line-webhook]
+verify_jwt = false

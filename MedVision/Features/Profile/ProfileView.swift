@@ -60,6 +60,8 @@ struct ProfileView: View {
                     languageCard
                     mealTimesCard
 
+                    CaregiverAlertsCard()
+
                     infoCard(title: "Account", items: [
                         ProfileInfoItem(icon: "envelope.fill", tint: .mvAccent, label: "Email", value: accountEmail),
                         ProfileInfoItem(icon: "phone.fill", tint: .mvSuccess, label: "Phone", value: phone.isEmpty ? "—" : phone)

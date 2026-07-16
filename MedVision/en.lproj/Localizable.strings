@@ -212,8 +212,17 @@
 /* Scan */
 "Label" = "Label";
 "Barcode" = "Barcode";
-"Centre the label inside the frame" = "Centre the label inside the frame";
+"Centre the label inside the frame" = "Centre the drug name; avoid the patient header. Names and ages are removed before processing.";
 "Centre the barcode inside the frame" = "Centre the barcode inside the frame";
+"Patient name and age on labels are removed before processing." = "Patient name and age on labels are removed before processing.";
+"Caregiver LINE alerts" = "Caregiver LINE alerts";
+"Caregiver connected" = "Caregiver connected";
+"No caregiver linked" = "No caregiver linked";
+"Generate invite code" = "Generate invite code";
+"Replace caregiver" = "Replace caregiver";
+"Unlink" = "Unlink";
+"Sign in to enable caregiver LINE alerts. Guest mode stays on this device only." = "Sign in to enable caregiver LINE alerts. Guest mode stays on this device only.";
+"If a dose is not taken within 30 minutes, your linked caregiver gets one LINE message (medicine name and time only — not photos)." = "If a dose is not taken within 30 minutes, your linked caregiver gets one LINE message (medicine name and time only — not photos).";
 "Scanning label..." = "Scanning label...";
 "Reading label..." = "Reading label...";
 "Checking medicine lists..." = "Checking medicine lists...";

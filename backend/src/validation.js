@@ -120,3 +120,38 @@ export function validateDoseEventPayload(input) {
 
   return { medicineId, scheduledFor, status, takenAt };
 }
+
+/**
+ * Upsert payload from the iOS app (client-keyed, medicine by name).
+ */
+export function validateDoseEventSyncPayload(input) {
+  if (!input || typeof input !== "object") {
+    throw new ValidationError("dose event sync payload is required");
+  }
+
+  const clientKey = asTrimmedString(input.clientKey, "clientKey", { required: true });
+  const medicineName = asTrimmedString(input.medicineName, "medicineName", { required: true });
+  const dosage = asTrimmedString(input.dosage, "dosage");
+  const form = normalizeMedicineForm(asTrimmedString(input.form ?? "tablet", "form", { required: true }));
+  const scheduledFor = asTrimmedString(input.scheduledFor, "scheduledFor", { required: true });
+  const status = asTrimmedString(input.status ?? "pending", "status", { required: true }).toLowerCase();
+  const takenAt = input.takenAt == null ? null : asTrimmedString(input.takenAt, "takenAt", { required: true });
+
+  if (!MEDICINE_FORMS.includes(form)) {
+    throw new ValidationError("form must be one of the supported medicine forms", {
+      allowedForms: MEDICINE_FORMS
+    });
+  }
+
+  if (!DOSE_EVENT_STATUSES.includes(status)) {
+    throw new ValidationError("status must be one of the supported dose event states", {
+      allowedStatuses: DOSE_EVENT_STATUSES
+    });
+  }
+
+  if (status === "complete" && !takenAt) {
+    throw new ValidationError("takenAt is required when status is complete");
+  }
+
+  return { clientKey, medicineName, dosage, form, scheduledFor, status, takenAt };
+}
