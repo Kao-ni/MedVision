@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(AuthService.self) private var auth
     @State private var showSplash = true
     @State private var authViewModel: AuthViewModel?
+    @AppStorage("hasCompletedTermsPlaceholder") private var hasCompletedTermsPlaceholder = false
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
     @State private var selectedTab = 0
     @State private var showScanCamera = false
@@ -15,7 +16,12 @@ struct ContentView: View {
             if showSplash || auth.isRestoringSession {
                 SplashScreenView()
             } else if auth.isSignedIn {
-                if shouldShowOnboarding {
+                if !hasCompletedTermsPlaceholder {
+                    TermsPlaceholderView {
+                        hasCompletedTermsPlaceholder = true
+                    }
+                    .transition(.opacity)
+                } else if shouldShowOnboarding {
                     OnboardingView()
                         .transition(.opacity)
                 } else {
