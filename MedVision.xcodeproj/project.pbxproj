@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		32D028833005D391007D0B0F /* PythonKit in Frameworks */ = {isa = PBXBuildFile; productRef = 32D028823005D391007D0B0F /* PythonKit */; };
 		A1B2C3D43005E001007D0B0F /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D53005E001007D0B0F /* Supabase */; };
 /* End PBXBuildFile section */
 
@@ -41,7 +40,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				32D028833005D391007D0B0F /* PythonKit in Frameworks */,
 				A1B2C3D43005E001007D0B0F /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -85,7 +83,6 @@
 			);
 			name = MedVision;
 			packageProductDependencies = (
-				32D028823005D391007D0B0F /* PythonKit */,
 				A1B2C3D53005E001007D0B0F /* Supabase */,
 			);
 			productName = MedVision;
@@ -117,7 +114,6 @@
 			mainGroup = 327E5EAF3000855600B3582A;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				32D028813005D391007D0B0F /* XCRemoteSwiftPackageReference "PythonKit" */,
 				A1B2C3D63005E001007D0B0F /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -281,10 +277,10 @@
 				DEVELOPMENT_TEAM = LVD57ZXZR5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-					INFOPLIST_KEY_CFBundleDisplayName = "";
-					INFOPLIST_KEY_NSCameraUsageDescription = "MedVision uses the camera to scan medication labels";
-					INFOPLIST_KEY_NSMotionUsageDescription = "MedVision uses motion to help stabilize the camera while scanning medication labels";
-					INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "MedVision accesses your photo library to scan medication labels from existing photos\n";
+				INFOPLIST_KEY_CFBundleDisplayName = "";
+				INFOPLIST_KEY_NSCameraUsageDescription = "MedVision uses the camera to scan medication labels";
+				INFOPLIST_KEY_NSMotionUsageDescription = "MedVision uses motion to help stabilize the camera while scanning medication labels";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "MedVision accesses your photo library to scan medication labels from existing photos\n";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -318,10 +314,10 @@
 				DEVELOPMENT_TEAM = LVD57ZXZR5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-					INFOPLIST_KEY_CFBundleDisplayName = "";
-					INFOPLIST_KEY_NSCameraUsageDescription = "MedVision uses the camera to scan medication labels";
-					INFOPLIST_KEY_NSMotionUsageDescription = "MedVision uses motion to help stabilize the camera while scanning medication labels";
-					INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "MedVision accesses your photo library to scan medication labels from existing photos\n";
+				INFOPLIST_KEY_CFBundleDisplayName = "";
+				INFOPLIST_KEY_NSCameraUsageDescription = "MedVision uses the camera to scan medication labels";
+				INFOPLIST_KEY_NSMotionUsageDescription = "MedVision uses motion to help stabilize the camera while scanning medication labels";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "MedVision accesses your photo library to scan medication labels from existing photos\n";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -368,14 +364,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		32D028813005D391007D0B0F /* XCRemoteSwiftPackageReference "PythonKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/pvieito/PythonKit.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
 		A1B2C3D63005E001007D0B0F /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase/supabase-swift";
@@ -387,11 +375,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		32D028823005D391007D0B0F /* PythonKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 32D028813005D391007D0B0F /* XCRemoteSwiftPackageReference "PythonKit" */;
-			productName = PythonKit;
-		};
 		A1B2C3D53005E001007D0B0F /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D63005E001007D0B0F /* XCRemoteSwiftPackageReference "supabase-swift" */;
