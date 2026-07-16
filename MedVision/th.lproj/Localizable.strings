@@ -190,8 +190,9 @@
 /* Scan */
 "Label" = "ฉลาก";
 "Barcode" = "บาร์โค้ด";
-"Centre the label inside the frame" = "จัดฉลากให้อยู่กลางกรอบ";
+"Centre the label inside the frame" = "จัดให้อยู่ตรงชื่อยา หลีกเลี่ยงส่วนหัวชื่อผู้ป่วย ชื่อและอายุจะถูกลบก่อนประมวลผล";
 "Centre the barcode inside the frame" = "จัดบาร์โค้ดให้อยู่กลางกรอบ";
+"Patient name and age on labels are removed before processing." = "ชื่อและอายุผู้ป่วยบนฉลากจะถูกลบก่อนประมวลผล";
 "Scanning label..." = "กำลังสแกนฉลาก...";
 "Reading label..." = "กำลังอ่านฉลาก...";
 "Checking medicine lists..." = "กำลังตรวจสอบรายการยา...";

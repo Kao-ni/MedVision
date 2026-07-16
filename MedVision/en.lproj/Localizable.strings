@@ -190,8 +190,9 @@
 /* Scan */
 "Label" = "Label";
 "Barcode" = "Barcode";
-"Centre the label inside the frame" = "Centre the label inside the frame";
+"Centre the label inside the frame" = "Centre the drug name; avoid the patient header. Names and ages are removed before processing.";
 "Centre the barcode inside the frame" = "Centre the barcode inside the frame";
+"Patient name and age on labels are removed before processing." = "Patient name and age on labels are removed before processing.";
 "Scanning label..." = "Scanning label...";
 "Reading label..." = "Reading label...";
 "Checking medicine lists..." = "Checking medicine lists...";

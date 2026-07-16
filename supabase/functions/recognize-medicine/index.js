@@ -1,6 +1,7 @@
 import { AppError, UpstreamError } from "../../../backend/src/errors.js";
 import { parseRecognizedMedicine } from "../../../backend/src/parseMedicine.js";
 import { runConsensusPipeline } from "../../../backend/src/consensusEngine.js";
+import { scrubPii } from "../../../backend/src/scrubPii.js";
 import { validateRecognitionUpload } from "../../../backend/src/validation.js";
 import { json, withErrorHandling } from "../_shared/http.js";
 import { getEnv, requireUser } from "../_shared/runtime.js";
@@ -274,13 +275,22 @@ Deno.serve((request) => withErrorHandling(request, async () => {
     });
   }
 
+  const deleteScanImage = async () => {
+    try {
+      await adminClient.storage.from("medicine-images").remove([path]);
+    } catch {
+      // Best-effort cleanup — do not fail the user response.
+    }
+  };
+
   try {
     const typhoon = await callTyphoon(image, contentType);
-    const parsed = await callTyphoonParser(typhoon.rawText);
+    const { scrubbedText } = scrubPii(typhoon.rawText);
+    const parsed = await callTyphoonParser(scrubbedText);
     const parsedMedicine = parseRecognizedMedicine(parsed.structuredText);
 
     const consensus = await runConsensusPipeline({
-      rawText: typhoon.rawText,
+      rawText: scrubbedText,
       parsedMedicine,
       callJudge
     });
@@ -295,7 +305,7 @@ Deno.serve((request) => withErrorHandling(request, async () => {
       .from("recognition_jobs")
       .update({
         status: "completed",
-        raw_ocr_text: typhoon.rawText,
+        raw_ocr_text: scrubbedText,
         parsed_result: resultPayload,
         failure_reason: ""
       })
@@ -310,10 +320,12 @@ Deno.serve((request) => withErrorHandling(request, async () => {
       });
     }
 
+    await deleteScanImage();
+
     return json({
       jobId: createdJob.data.id,
       status: "completed",
-      rawText: typhoon.rawText,
+      rawText: scrubbedText,
       parsedMedicine,
       resolution: consensus.resolution,
       judgeSkipped: consensus.judgeSkipped,
@@ -329,6 +341,7 @@ Deno.serve((request) => withErrorHandling(request, async () => {
       })
       .eq("id", createdJob.data.id)
       .eq("user_id", userId);
+    await deleteScanImage();
     throw error;
   }
 }));

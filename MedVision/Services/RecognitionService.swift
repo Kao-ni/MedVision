@@ -283,6 +283,8 @@ struct RecognitionService {
             throw RecognitionError.networkError(error)
         }
 
+        rawText = PiiScrubber.scrub(rawText).scrubbedText
+
         let structuredJSON: String
         do {
             structuredJSON = try await structureMedicineData(from: rawText)
