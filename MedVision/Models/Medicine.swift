@@ -30,6 +30,7 @@ class Medicine {
     var dosage: String
     var form: MedicineForm
     var notes: String
+    var barcode: String?
     var photoData: Data?
 
     var scheduledTimes: [Date]
@@ -43,6 +44,7 @@ class Medicine {
         dosage: String = "",
         form: MedicineForm = .tablet,
         notes: String = "",
+        barcode: String? = nil,
         photoData: Data? = nil,
         scheduledTimes: [Date] = [],
         frequencyNote: String = ""
@@ -52,6 +54,7 @@ class Medicine {
         self.dosage = dosage
         self.form = form
         self.notes = notes
+        self.barcode = barcode
         self.photoData = photoData
         self.scheduledTimes = scheduledTimes
         self.frequencyNote = frequencyNote

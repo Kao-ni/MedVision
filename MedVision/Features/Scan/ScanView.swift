@@ -1,17 +1,43 @@
 @preconcurrency import AVFoundation
+import CoreImage
+import ImageIO
 import PhotosUI
 import SwiftUI
 import Vision
 import Combine
+
+private let supportedBarcodeObjectTypes: [AVMetadataObject.ObjectType] = [
+    .ean8,
+    .ean13,
+    .upce,
+    .code128,
+    .code39,
+    .qr,
+    .dataMatrix
+]
+
+private let supportedBarcodeSymbologies: [VNBarcodeSymbology] = [
+    .ean8,
+    .ean13,
+    .upce,
+    .code128,
+    .code39,
+    .qr,
+    .dataMatrix
+]
 
 struct ScanView: View {
     @Binding var showCamera: Bool
     let onClose: () -> Void
 
     @State private var isRecognizing = false
+    @State private var selectedMode: ScannerMode = .label
     @State private var recognitionResult: RecognizedMedicine?
     @State private var showAddMedicine = false
     @State private var ocrErrorMessage: String?
+    @State private var scannedBarcode: String?
+    @State private var didCaptureBarcode = false
+    @State private var barcodeUnlockTask: Task<Void, Never>?
     @State private var capturedPhotoData: Data?
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showPhotoPicker = false
@@ -21,8 +47,16 @@ struct ScanView: View {
             if showCamera {
                 ScannerFullScreenView(
                     isBusy: isRecognizing,
+                    selectedMode: $selectedMode,
                     onClose: onClose,
-                    onCapture: handleCapture,
+                    onCapture: { image in
+                        if selectedMode == .barcode {
+                            handleBarcodeImage(image)
+                        } else {
+                            handleCapture(image)
+                        }
+                    },
+                    onBarcodeCapture: handleBarcodeCapture,
                     onGalleryTap: { showPhotoPicker = true }
                 )
             } else {
@@ -39,16 +73,23 @@ struct ScanView: View {
             guard let item = photoPickerItem else { return }
             if let data = try? await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
-                handleCapture(image)
+                if selectedMode == .barcode {
+                    handleBarcodeImage(image)
+                } else {
+                    handleCapture(image)
+                }
             }
             await MainActor.run {
                 photoPickerItem = nil
             }
         }
-        .sheet(isPresented: $showAddMedicine) {
+        .sheet(isPresented: $showAddMedicine, onDismiss: {
+            resetScanState()
+        }) {
             AddMedicineView(
                 prefilled: recognitionResult,
                 initialPhotoData: capturedPhotoData,
+                scannedBarcode: scannedBarcode,
                 scanErrorMessage: ocrErrorMessage
             )
         }
@@ -57,9 +98,11 @@ struct ScanView: View {
     private func handleCapture(_ image: UIImage) {
         Task {
             await MainActor.run {
+                didCaptureBarcode = false
                 isRecognizing = true
                 capturedPhotoData = image.jpegData(compressionQuality: 0.8)
                 ocrErrorMessage = nil
+                scannedBarcode = nil
             }
 
             do {
@@ -72,7 +115,7 @@ struct ScanView: View {
                 await MainActor.run {
                     recognitionResult = nil
                     ocrErrorMessage = (error as? RecognitionError)?.errorDescription
-                        ?? AppLanguage.localized("Couldn't read the packet. Fill in the details below.")
+                        ?? NSLocalizedString("Couldn't read the packet. Fill in the details below.", comment: "")
                 }
             }
             await MainActor.run {
@@ -81,16 +124,115 @@ struct ScanView: View {
             }
         }
     }
+
+    private func handleBarcodeCapture(_ barcode: String) {
+        let trimmed = barcode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            ocrErrorMessage = "Couldn't read the barcode. Try again or switch to manual entry."
+            return
+        }
+        guard !didCaptureBarcode else { return }
+
+        barcodeUnlockTask?.cancel()
+        didCaptureBarcode = true
+        recognitionResult = nil
+        capturedPhotoData = nil
+        scannedBarcode = trimmed
+        ocrErrorMessage = nil
+        showAddMedicine = true
+    }
+
+    private func handleBarcodeImage(_ image: UIImage) {
+        Task {
+            await MainActor.run {
+                barcodeUnlockTask?.cancel()
+                didCaptureBarcode = true
+                isRecognizing = true
+                capturedPhotoData = nil
+                ocrErrorMessage = nil
+                scannedBarcode = nil
+                recognitionResult = nil
+            }
+
+            do {
+                if let barcode = try await decodeBarcode(from: image) {
+                    await MainActor.run {
+                        barcodeUnlockTask?.cancel()
+                        didCaptureBarcode = true
+                        scannedBarcode = barcode
+                        showAddMedicine = true
+                    }
+                } else {
+                    await MainActor.run {
+                        ocrErrorMessage = "Couldn't read the barcode from this photo."
+                        showAddMedicine = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    ocrErrorMessage = "Couldn't read the barcode from this photo."
+                    showAddMedicine = true
+                }
+            }
+
+            await MainActor.run {
+                isRecognizing = false
+            }
+        }
+    }
+
+    private func decodeBarcode(from image: UIImage) async throws -> String? {
+        guard let cgImage = image.cgImage ?? image.ciImage.flatMap({ CIContext().createCGImage($0, from: $0.extent) }) else {
+            return nil
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            let request = VNDetectBarcodesRequest { request, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                let payload = (request.results as? [VNBarcodeObservation])?.first?.payloadStringValue
+                continuation.resume(returning: payload)
+            }
+            request.symbologies = supportedBarcodeSymbologies
+            let handler = VNImageRequestHandler(
+                cgImage: cgImage,
+                orientation: image.imageOrientation.cgImagePropertyOrientation,
+                options: [:]
+            )
+            do {
+                try handler.perform([request])
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    private func resetScanState() {
+        recognitionResult = nil
+        scannedBarcode = nil
+        ocrErrorMessage = nil
+        capturedPhotoData = nil
+        isRecognizing = false
+
+        barcodeUnlockTask?.cancel()
+        barcodeUnlockTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            didCaptureBarcode = false
+        }
+    }
 }
 
 private struct ScannerFullScreenView: View {
     let isBusy: Bool
+    @Binding var selectedMode: ScannerMode
     let onClose: () -> Void
     let onCapture: (UIImage) -> Void
+    let onBarcodeCapture: (String) -> Void
     let onGalleryTap: () -> Void
 
     @StateObject private var camera = ScannerCameraController()
-    @State private var selectedMode: ScannerMode = .label
 
     var body: some View {
         GeometryReader { proxy in
@@ -126,6 +268,7 @@ private struct ScannerFullScreenView: View {
             }
             .onAppear {
                 camera.onCapture = onCapture
+                camera.onBarcodeCapture = onBarcodeCapture
                 camera.start()
             }
             .onDisappear {
@@ -280,6 +423,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
     @Published var captureFeedback: CaptureFeedback?
 
     var onCapture: ((UIImage) -> Void)?
+    var onBarcodeCapture: ((String) -> Void)?
 
     private let sessionQueue = DispatchQueue(label: "medvision.scanner.session")
     private let analysisQueue = DispatchQueue(label: "medvision.scanner.analysis", qos: .userInitiated)
@@ -374,7 +518,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
             self.session.beginConfiguration()
             self.session.sessionPreset = mode == .label ? .photo : .high
             self.metadataOutput.metadataObjectTypes = mode == .barcode
-                ? [.ean8, .ean13, .qr, .dataMatrix]
+                ? supportedBarcodeObjectTypes
                 : []
             self.session.commitConfiguration()
         }
@@ -499,7 +643,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
             session.addOutput(metadataOutput)
         }
         metadataOutput.metadataObjectTypes = currentMode == .barcode
-            ? [.ean8, .ean13, .qr, .dataMatrix]
+            ? supportedBarcodeObjectTypes
             : []
 
         session.commitConfiguration()
@@ -700,9 +844,28 @@ private final class ScannerPhotoDelegate: NSObject, AVCapturePhotoCaptureDelegat
 
 extension ScannerCameraController: AVCaptureMetadataOutputObjectsDelegate {
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
-        guard currentMode == .barcode, !metadataObjects.isEmpty else { return }
+        guard currentMode == .barcode else { return }
+        guard let readable = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              let value = readable.stringValue, !value.isEmpty else { return }
         DispatchQueue.main.async {
             self.tipState = .ready
+            self.onBarcodeCapture?(value)
+        }
+    }
+}
+
+private extension UIImage.Orientation {
+    var cgImagePropertyOrientation: CGImagePropertyOrientation {
+        switch self {
+        case .up: return .up
+        case .down: return .down
+        case .left: return .left
+        case .right: return .right
+        case .upMirrored: return .upMirrored
+        case .downMirrored: return .downMirrored
+        case .leftMirrored: return .leftMirrored
+        case .rightMirrored: return .rightMirrored
+        @unknown default: return .up
         }
     }
 }

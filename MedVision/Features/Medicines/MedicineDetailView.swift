@@ -78,6 +78,12 @@ struct MedicineDetailView: View {
             if !medicine.dosage.isEmpty {
                 LabeledContent("Dosage", value: medicine.dosage)
             }
+            if let barcode = medicine.barcode, !barcode.isEmpty {
+                LabeledContent("Barcode") {
+                    Text(barcode)
+                        .textSelection(.enabled)
+                }
+            }
             LabeledContent {
                 Text(LocalizedStringKey(medicine.form.localizationKey))
             } label: {

@@ -12,6 +12,7 @@ struct AddMedicineView: View {
     var prefilled: RecognizedMedicine? = nil
     var existing: Medicine? = nil
     var initialPhotoData: Data? = nil
+    var scannedBarcode: String? = nil
     var scanErrorMessage: String? = nil
 
     @Environment(\.modelContext) private var context
@@ -22,6 +23,7 @@ struct AddMedicineView: View {
     @State private var dosage: String
     @State private var form: MedicineForm
     @State private var notes: String
+    @State private var barcode: String
     @State private var scheduledTimes: [Date]
     @State private var frequencyNote: String
     @State private var photoItem: PhotosPickerItem?
@@ -29,17 +31,20 @@ struct AddMedicineView: View {
 
     private var isEditing: Bool  { existing != nil }
     private var isOCRResult: Bool { prefilled != nil && existing == nil }
+    private var isBarcodeResult: Bool { scannedBarcode?.isEmpty == false && existing == nil && prefilled == nil }
     private var isSaveDisabled: Bool { name.trimmingCharacters(in: .whitespaces).isEmpty }
 
     init(
         prefilled: RecognizedMedicine? = nil,
         existing: Medicine? = nil,
         initialPhotoData: Data? = nil,
+        scannedBarcode: String? = nil,
         scanErrorMessage: String? = nil
     ) {
         self.prefilled = prefilled
         self.existing = existing
         self.initialPhotoData = initialPhotoData
+        self.scannedBarcode = scannedBarcode
         self.scanErrorMessage = scanErrorMessage
 
         if let m = existing {
@@ -47,6 +52,7 @@ struct AddMedicineView: View {
             _dosage        = State(initialValue: m.dosage)
             _form          = State(initialValue: m.form)
             _notes         = State(initialValue: m.notes)
+            _barcode       = State(initialValue: m.barcode ?? "")
             _scheduledTimes = State(initialValue: m.scheduledTimes)
             _frequencyNote = State(initialValue: m.frequencyNote)
             _photoData     = State(initialValue: m.photoData)
@@ -61,12 +67,16 @@ struct AddMedicineView: View {
             _notes         = State(initialValue: p.notes)
             _scheduledTimes = State(initialValue: suggestion.times)
             _frequencyNote = State(initialValue: suggestion.frequencyNote)
+            _barcode       = State(initialValue: scannedBarcode ?? "")
+            _scheduledTimes = State(initialValue: [])
+            _frequencyNote = State(initialValue: "")
             _photoData     = State(initialValue: p.photoData ?? initialPhotoData)
         } else {
             _name          = State(initialValue: "")
             _dosage        = State(initialValue: "")
             _form          = State(initialValue: .tablet)
             _notes         = State(initialValue: "")
+            _barcode       = State(initialValue: scannedBarcode ?? "")
             _scheduledTimes = State(initialValue: [])
             _frequencyNote = State(initialValue: "")
             _photoData     = State(initialValue: initialPhotoData)
@@ -95,6 +105,15 @@ struct AddMedicineView: View {
                     .listRowBackground(Color.blue.opacity(0.07))
                 }
 
+                if isBarcodeResult {
+                    Section {
+                        Label("Barcode captured from the scanner. Fill in the medicine name and dosage before saving.", systemImage: "barcode.viewfinder")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .listRowBackground(Color.blue.opacity(0.07))
+                }
+
                 Section("Medicine Details") {
                     LabeledContent {
                         TextField("e.g. Paracetamol", text: $name)
@@ -108,6 +127,15 @@ struct AddMedicineView: View {
                             .multilineTextAlignment(.trailing)
                     } label: {
                         Text("Dosage")
+                    }
+
+                    LabeledContent {
+                        TextField("e.g. 0123456789012", text: $barcode)
+                            .multilineTextAlignment(.trailing)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    } label: {
+                        Text("Barcode")
                     }
 
                     Picker("Form", selection: $form) {
@@ -234,6 +262,7 @@ struct AddMedicineView: View {
     private func save() {
         let trimmedName     = name.trimmingCharacters(in: .whitespaces)
         let trimmedDosage   = dosage.trimmingCharacters(in: .whitespaces)
+        let trimmedBarcode  = barcode.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes    = notes.trimmingCharacters(in: .whitespaces)
         let trimmedFreqNote = frequencyNote.trimmingCharacters(in: .whitespaces)
         let sorted          = scheduledTimes.sorted()
@@ -244,6 +273,7 @@ struct AddMedicineView: View {
             existing.dosage         = trimmedDosage
             existing.form           = form
             existing.notes          = trimmedNotes
+            existing.barcode        = trimmedBarcode.isEmpty ? nil : trimmedBarcode
             existing.scheduledTimes = sorted
             existing.frequencyNote  = trimmedFreqNote
             existing.photoData      = photoData
@@ -254,6 +284,7 @@ struct AddMedicineView: View {
                 dosage: trimmedDosage,
                 form: form,
                 notes: trimmedNotes,
+                barcode: trimmedBarcode.isEmpty ? nil : trimmedBarcode,
                 photoData: photoData,
                 scheduledTimes: sorted,
                 frequencyNote: trimmedFreqNote

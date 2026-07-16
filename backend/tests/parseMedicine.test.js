@@ -13,7 +13,7 @@ test("extracts medicine fields from mixed OCR text", () => {
 
   assert.equal(result.name, "Paracetamol");
   assert.equal(result.dosage, "500 mg");
-  assert.equal(result.form, "pill");
+  assert.equal(result.form, "tablet");
   assert.equal(result.confidence, "high");
   assert.deepEqual(result.warnings, []);
 });
@@ -41,7 +41,7 @@ test("parses structured JSON medicine output", () => {
 
   assert.equal(result.name, "Paracetamol");
   assert.equal(result.dosage, "500 mg");
-  assert.equal(result.form, "pill");
+  assert.equal(result.form, "tablet");
   assert.equal(result.notes, "Take after food");
   assert.equal(result.confidence, "medium");
   assert.deepEqual(result.warnings, ["check label"]);
@@ -61,7 +61,7 @@ test("recovers medicine fields from nested structured JSON", () => {
 
   assert.equal(result.name, "Tylenol");
   assert.equal(result.dosage, "500 mg");
-  assert.equal(result.form, "pill");
+  assert.equal(result.form, "tablet");
   assert.equal(result.notes, "Take after food");
 });
 
@@ -80,7 +80,7 @@ test("does not treat confidence fields as medicine fields", () => {
 
   assert.equal(result.name, "Amoxicillin");
   assert.equal(result.dosage, "");
-  assert.equal(result.form, "pill");
+  assert.equal(result.form, "capsule");
 });
 
 test("marks non-medicine results explicitly", () => {

@@ -139,44 +139,59 @@ struct OnboardingView: View {
             }
             .padding(.top, 16)
 
-            Button {
-                if currentPage < mealTimesPageIndex {
-                    if currentPage == agePageIndex {
-                        storedAge = ageInput
+            HStack(spacing: 12) {
+                if currentPage > 0 {
+                    Button {
+                        withAnimation { currentPage -= 1 }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.title3.bold())
+                            .frame(width: 56, height: 62)
+                            .background(Color.secondary.opacity(0.12))
+                            .foregroundStyle(.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
                     }
-                    if currentPage == bloodTypePageIndex {
-                        storedBloodType = bloodTypeInput
-                    }
-                    withAnimation {
-                        currentPage += 1
-                    }
-                } else {
-                    storedAge = ageInput
-                    storedBloodType = bloodTypeInput
-                    storedBreakfastSeconds = breakfastTime.secondsFromMidnight
-                    storedLunchSeconds = lunchTime.secondsFromMidnight
-                    storedDinnerSeconds = dinnerTime.secondsFromMidnight
-                    shouldShowOnboarding = false
-                    dismiss()
                 }
-            } label: {
-                Text(
-                    isMealTimesPage
-                        ? LocalizedStringKey("Get Started")
-                        : LocalizedStringKey("Next")
-                )
-                    .font(.title3.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(Color.accentColor)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
+
+                Button {
+                    if currentPage < mealTimesPageIndex {
+                        if currentPage == agePageIndex {
+                            storedAge = ageInput
+                        }
+                        if currentPage == bloodTypePageIndex {
+                            storedBloodType = bloodTypeInput
+                        }
+                        withAnimation {
+                            currentPage += 1
+                        }
+                    } else {
+                        storedAge = ageInput
+                        storedBloodType = bloodTypeInput
+                        storedBreakfastSeconds = breakfastTime.secondsFromMidnight
+                        storedLunchSeconds = lunchTime.secondsFromMidnight
+                        storedDinnerSeconds = dinnerTime.secondsFromMidnight
+                        shouldShowOnboarding = false
+                        dismiss()
+                    }
+                } label: {
+                    Text(
+                        isMealTimesPage
+                            ? LocalizedStringKey("Get Started")
+                            : LocalizedStringKey("Next")
+                    )
+                        .font(.title3.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(Color.accentColor)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                }
+                .disabled(!isCurrentPageValid)
+                .opacity(isCurrentPageValid ? 1 : 0.5)
             }
             .padding(.horizontal, 32)
             .padding(.top, 28)
             .padding(.bottom, 52)
-            .disabled(!isCurrentPageValid)
-            .opacity(isCurrentPageValid ? 1 : 0.5)
         }
     }
 
