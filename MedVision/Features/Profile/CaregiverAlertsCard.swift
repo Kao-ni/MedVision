@@ -1,4 +1,5 @@
 import SwiftUI
+import Auth
 
 /// Profile section: link a caregiver LINE account for missed-dose alerts.
 struct CaregiverAlertsCard: View {
