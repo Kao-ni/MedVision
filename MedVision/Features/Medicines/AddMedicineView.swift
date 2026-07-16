@@ -108,22 +108,30 @@ struct AddMedicineView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if isOCRResult || isBarcodeResult || scanErrorMessage != nil {
+                    Section {
+                        confirmationHero
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+
                 if let scanErrorMessage {
                     Section {
                         Label(scanErrorMessage, systemImage: "exclamationmark.triangle.fill")
                             .font(.subheadline)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.mvWarning)
                     }
-                    .listRowBackground(Color.orange.opacity(0.08))
+                    .listRowBackground(Color.mvWarning.opacity(0.1))
                 }
 
                 if isOCRResult {
                     Section {
                         Label("Check the details below and correct anything before saving.", systemImage: "info.circle")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.mvSubtle)
                     }
-                    .listRowBackground(Color.blue.opacity(0.07))
+                    .listRowBackground(Color.mvAccent.opacity(0.1))
 
                     if let resolution = prefilled?.resolution {
                         resolutionSection(resolution)
@@ -136,9 +144,9 @@ struct AddMedicineView: View {
                                 systemImage: "exclamationmark.circle.fill"
                             )
                             .font(.subheadline)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.mvWarning)
                         }
-                        .listRowBackground(Color.orange.opacity(0.08))
+                        .listRowBackground(Color.mvWarning.opacity(0.1))
                     }
 
                     if let warnings = prefilled?.warnings, !warnings.isEmpty {
@@ -146,10 +154,10 @@ struct AddMedicineView: View {
                             ForEach(warnings, id: \.self) { warning in
                                 Label(warning, systemImage: "exclamationmark.triangle.fill")
                                     .font(.subheadline)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(Color.mvWarning)
                             }
                         }
-                        .listRowBackground(Color.orange.opacity(0.08))
+                        .listRowBackground(Color.mvWarning.opacity(0.1))
                     }
                 }
 
@@ -157,9 +165,9 @@ struct AddMedicineView: View {
                     Section {
                         Label("Barcode captured from the scanner. Fill in the medicine name and dosage before saving.", systemImage: "barcode.viewfinder")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.mvSubtle)
                     }
-                    .listRowBackground(Color.blue.opacity(0.07))
+                    .listRowBackground(Color.mvAccent.opacity(0.1))
                 }
 
                 Section("Medicine Details") {
@@ -203,17 +211,21 @@ struct AddMedicineView: View {
                         ocrFieldLabel("Form", confidence: prefilled?.fieldConfidence.form)
                     }
                 }
+                .listRowBackground(Color.mvSurface.opacity(0.72))
 
                 Section("Notes") {
                     TextField("e.g. Take with food", text: $notes, axis: .vertical)
                         .lineLimit(3, reservesSpace: true)
                         .focused($focusedField, equals: .notes)
                 }
+                .listRowBackground(Color.mvSurface.opacity(0.72))
 
                 scheduleSection
 
                 photoSection
             }
+            .scrollContentBackground(.hidden)
+            .mvScreenBackground()
             .navigationTitle(
                 isEditing
                     ? LocalizedStringKey("Edit Medicine")
@@ -222,21 +234,77 @@ struct AddMedicineView: View {
                         : LocalizedStringKey("Add Medicine")
             )
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { close() }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
-                        .fontWeight(.semibold)
-                        .disabled(isSaveDisabled)
+                        .foregroundStyle(Color.mvAccent)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") { focusedField = nil }
                 }
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button {
+                    save()
+                } label: {
+                    Label(saveButtonTitle, systemImage: "checkmark.circle.fill")
+                }
+                .buttonStyle(MVPrimaryButtonStyle(enabled: !isSaveDisabled))
+                .disabled(isSaveDisabled)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial)
+            }
         }
+    }
+
+    private var confirmationHero: some View {
+        VStack(spacing: 14) {
+            Group {
+                if let photoData, let image = UIImage(data: photoData) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                } else {
+                    MVIconTile(
+                        systemImage: isBarcodeResult ? "barcode.viewfinder" : "doc.text.viewfinder",
+                        tint: .mvAccent,
+                        size: 76
+                    )
+                }
+            }
+
+            VStack(spacing: 5) {
+                Text(confirmationTitle)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(Color.mvInk)
+                Text("Review every field before adding this medicine to your schedule.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.mvSubtle)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(18)
+        .glassCard()
+        .padding(.vertical, 8)
+    }
+
+    private var saveButtonTitle: LocalizedStringKey {
+        if isEditing { return "Save Changes" }
+        if isOCRResult || isBarcodeResult { return "Confirm and Save" }
+        return "Add Medicine"
+    }
+
+    private var confirmationTitle: LocalizedStringKey {
+        if isOCRResult { return "Scan complete" }
+        if isBarcodeResult { return "Barcode captured" }
+        return "Review medicine details"
     }
 
     private var scheduleSection: some View {
@@ -244,7 +312,7 @@ struct AddMedicineView: View {
             if scheduledTimes.isEmpty {
                 Text("No times set - add at least one to receive reminders.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.mvSubtle)
             } else {
                 ForEach(scheduledTimes.indices, id: \.self) { i in
                     DatePicker(
@@ -281,6 +349,7 @@ struct AddMedicineView: View {
                     .opacity(scheduledTimes.isEmpty ? 0 : 1)
             }
         }
+        .listRowBackground(Color.mvSurface.opacity(0.72))
     }
 
     private var photoSection: some View {
@@ -296,7 +365,7 @@ struct AddMedicineView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 } else {
                     Label("Add Photo", systemImage: "photo.badge.plus")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.mvAccent)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -315,6 +384,7 @@ struct AddMedicineView: View {
                 }
             }
         }
+        .listRowBackground(Color.mvSurface.opacity(0.72))
     }
 
     @ViewBuilder
@@ -331,10 +401,10 @@ struct AddMedicineView: View {
                         : "checkmark.seal.fill"
                 )
                 .font(.subheadline)
-                .foregroundStyle(resolution.label == "ai_corrected" ? .blue : .green)
+                .foregroundStyle(resolution.label == "ai_corrected" ? Color.mvAccent : Color.mvSuccess)
             }
             .listRowBackground(
-                (resolution.label == "ai_corrected" ? Color.blue : Color.green).opacity(0.08)
+                (resolution.label == "ai_corrected" ? Color.mvAccent : Color.mvSuccess).opacity(0.1)
             )
 
         case .disagreement:
@@ -344,7 +414,7 @@ struct AddMedicineView: View {
                     systemImage: "exclamationmark.triangle.fill"
                 )
                 .font(.subheadline)
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.mvDanger)
 
                 ForEach(uniqueNameCandidates(resolution.candidates)) { candidate in
                     Button {
@@ -353,21 +423,21 @@ struct AddMedicineView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(candidate.name)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(Color.mvInk)
                                 Text(candidate.source.uppercased())
                                     .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Color.mvSubtle)
                             }
                             Spacer()
                             if name == candidate.name {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(Color.mvAccent)
                             }
                         }
                     }
                 }
             }
-            .listRowBackground(Color.red.opacity(0.08))
+            .listRowBackground(Color.mvDanger.opacity(0.1))
 
         case .unverified:
             Section {
@@ -376,9 +446,9 @@ struct AddMedicineView: View {
                     systemImage: "exclamationmark.circle.fill"
                 )
                 .font(.subheadline)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.mvWarning)
             }
-            .listRowBackground(Color.orange.opacity(0.08))
+            .listRowBackground(Color.mvWarning.opacity(0.1))
         }
     }
 
@@ -400,7 +470,7 @@ struct AddMedicineView: View {
                 Text(title)
                 Image(systemName: confidence == .low ? "exclamationmark.triangle.fill" : "questionmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(confidence == .low ? .orange : .yellow)
+                    .foregroundStyle(confidence == .low ? Color.mvWarning : Color.mvAccent)
             }
         } else {
             Text(title)

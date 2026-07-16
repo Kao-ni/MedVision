@@ -27,10 +27,25 @@
 "Second" = "วินาที";
 
 "Today" = "วันนี้";
+"Good morning" = "สวัสดีตอนเช้า";
+"Good afternoon" = "สวัสดีตอนบ่าย";
+"Good evening" = "สวัสดีตอนเย็น";
+"Daily progress" = "ความคืบหน้าประจำวัน";
+"Add medicines from the Medicines tab" = "เพิ่มยาได้จากแท็บรายการยา";
 "Medicines" = "รายการยา";
+"Manage doses and reminders in one place" = "จัดการขนาดยาและการแจ้งเตือนในที่เดียว";
+"Your Medicines" = "ยาของคุณ";
+"Search medicines" = "ค้นหายา";
+"Clear search" = "ล้างการค้นหา";
+"No matching medicines" = "ไม่พบยาที่ตรงกัน";
+"Try a different medicine name or dosage." = "ลองค้นหาด้วยชื่อยาหรือขนาดยาอื่น";
 "Scan" = "สแกน";
 "History" = "ประวัติ";
+"A record of your medicine routine" = "บันทึกการทานยาของคุณ";
+"No results for this filter" = "ไม่มีผลลัพธ์สำหรับตัวกรองนี้";
+"Choose another status to see your dose history." = "เลือกสถานะอื่นเพื่อดูประวัติการทานยา";
 "Profile" = "โปรไฟล์";
+"Your health and account preferences" = "ข้อมูลสุขภาพและการตั้งค่าบัญชีของคุณ";
 "Overdue" = "เลยเวลา";
 "Upcoming" = "กำลังจะถึง";
 "Done" = "เสร็จแล้ว";
@@ -68,6 +83,12 @@
 "e.g. Take with food" = "เช่น ทานพร้อมอาหาร";
 "Edit Medicine" = "แก้ไขยา";
 "Confirm Medicine" = "ยืนยันข้อมูลยา";
+"Scan complete" = "สแกนเสร็จแล้ว";
+"Barcode captured" = "บันทึกบาร์โค้ดแล้ว";
+"Review medicine details" = "ตรวจสอบรายละเอียดยา";
+"Review every field before adding this medicine to your schedule." = "ตรวจสอบทุกช่องก่อนเพิ่มยานี้ในตารางของคุณ";
+"Save Changes" = "บันทึกการเปลี่ยนแปลง";
+"Confirm and Save" = "ยืนยันและบันทึก";
 "Add Medicine" = "เพิ่มยา";
 "Cancel" = "ยกเลิก";
 "Save" = "บันทึก";
@@ -142,6 +163,7 @@
 
 "progress_taken_format" = "ทานแล้ว %d จาก %d รายการวันนี้";
 "progress_remaining_format" = "เหลืออีก %d รายการ";
+"percent_format" = "%d เปอร์เซ็นต์";
 "taken_at_format" = "เวลา %@";
 "scheduled_accessibility_format" = "%@กำหนดเวลา %@";
 "doses_per_day_format" = "%d ครั้ง/วัน";

@@ -4,13 +4,15 @@ import SwiftData
 struct HistoryView: View {
     @Query(sort: \DoseEvent.scheduledTime, order: .reverse) private var events: [DoseEvent]
     @Environment(\.locale) private var locale
+    @State private var filter: DoseStatus?
 
-    @State private var filter: DoseStatus? = nil
+    private var completedEvents: [DoseEvent] {
+        events.filter { $0.status != .pending }
+    }
 
     private var filtered: [DoseEvent] {
-        let base = events.filter { $0.status != .pending }
-        guard let filter else { return base }
-        return base.filter { $0.status == filter }
+        guard let filter else { return completedEvents }
+        return completedEvents.filter { $0.status == filter }
     }
 
     private var sections: [(day: Date, events: [DoseEvent])] {
@@ -23,43 +25,56 @@ struct HistoryView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if events.isEmpty {
-                    ContentUnavailableView(
-                        "No history yet",
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text("Doses you take, skip, or miss will appear here.")
-                    )
-                } else {
-                    list
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+
+                    if completedEvents.isEmpty {
+                        MVEmptyState(
+                            systemImage: "clock.arrow.circlepath",
+                            title: "No history yet",
+                            message: "Doses you take, skip, or miss will appear here."
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 34)
+                        .glassCard()
+                    } else {
+                        filterPicker
+
+                        if sections.isEmpty {
+                            MVEmptyState(
+                                systemImage: "line.3.horizontal.decrease.circle",
+                                title: "No results for this filter",
+                                message: "Choose another status to see your dose history."
+                            )
+                            .frame(maxWidth: .infinity)
+                            .glassCard()
+                        } else {
+                            ForEach(sections, id: \.day) { section in
+                                historySection(section)
+                            }
+                        }
+                    }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, 28)
             }
-            .navigationTitle("History")
+            .scrollIndicators(.hidden)
+            .mvScreenBackground()
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 
-    private var list: some View {
-        List {
-            Section {
-                filterPicker
-                    .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
-            }
-
-            ForEach(sections, id: \.day) { section in
-                Section {
-                    ForEach(section.events) { event in
-                        DoseEventRow(event: event)
-                    }
-                } header: {
-                    Text(
-                        section.day,
-                        format: Date.FormatStyle(date: .complete, time: .omitted)
-                            .locale(locale)
-                    )
-                }
-            }
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("History")
+                .font(.system(size: 31, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.mvInk)
+            Text("A record of your medicine routine")
+                .font(.subheadline)
+                .foregroundStyle(Color.mvSubtle)
         }
-        .listStyle(.insetGrouped)
     }
 
     private var filterPicker: some View {
@@ -71,10 +86,46 @@ struct HistoryView: View {
             }
         }
         .pickerStyle(.segmented)
+        .padding(7)
+        .glassCard(cornerRadius: 16)
         .accessibilityLabel("Filter history by outcome")
+    }
+
+    private func historySection(_ section: (day: Date, events: [DoseEvent])) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(
+                    section.day,
+                    format: Date.FormatStyle(date: .complete, time: .omitted)
+                        .locale(locale)
+                )
+                .font(.system(size: 13, weight: .bold))
+                .textCase(.uppercase)
+                .tracking(0.4)
+                .foregroundStyle(Color.mvSubtle)
+                Spacer()
+                Text("\(section.events.count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.mvAccent)
+            }
+
+            VStack(spacing: 0) {
+                ForEach(Array(section.events.enumerated()), id: \.element.id) { index, event in
+                    DoseEventRow(event: event)
+                    if index < section.events.count - 1 {
+                        Divider()
+                            .overlay(Color.mvBorder.opacity(0.45))
+                            .padding(.leading, 62)
+                    }
+                }
+            }
+            .padding(.horizontal, 15)
+            .glassCard()
+        }
     }
 }
 
 #Preview {
     HistoryView()
+        .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
 }

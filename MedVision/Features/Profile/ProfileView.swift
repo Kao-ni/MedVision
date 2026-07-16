@@ -21,120 +21,83 @@ struct ProfileView: View {
     @State private var isSigningOut = false
     @State private var signOutError: String?
 
-    private var accountEmail: String {
-        auth.userEmail ?? "—"
-    }
+    private var accountEmail: String { auth.userEmail ?? "—" }
 
     private var birthdayDisplay: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        formatter.locale = locale
-        return formatter.string(from: Date(timeIntervalSince1970: birthdayTimestamp))
+        Date(timeIntervalSince1970: birthdayTimestamp).formatted(
+            Date.FormatStyle(date: .abbreviated, time: .omitted).locale(locale)
+        )
     }
 
     private var ageDisplay: String {
-        let calendar = Calendar.current
         let birthday = Date(timeIntervalSince1970: birthdayTimestamp)
-        let age = calendar.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+        let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
         return age > 0 ? "\(age)" : "0"
+    }
+
+    private var initials: String {
+        let values = [displayFirstName, displayLastName]
+            .compactMap { $0.first }
+            .map(String.init)
+            .joined()
+        return values.isEmpty ? "MV" : values.uppercased()
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack(alignment: .top, spacing: 16) {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(LinearGradient(
-                                colors: [.blue, .blue.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
-                            .frame(width: 100, height: 125)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 44))
-                                    .foregroundStyle(.white.opacity(0.9))
-                            )
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            VStack(alignment: .leading, spacing: -6) {
-                                Text(displayFirstName)
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                Text(displayLastName)
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                            }
-
-                            HStack(spacing: 8) {
-                                statPill(value: gender, label: "Gender", localizeValue: true)
-                                statPill(value: ageDisplay, label: "Age")
-                                statPill(value: birthdayDisplay, label: "Birthday")
-                            }
-                            .padding(.top, 8)
-                        }
-                        .alignmentGuide(.top) { d in d[.top] + 6 }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+                    header
+                    identityCard
 
                     infoCard(title: "Health Information", items: [
-                        ("drop.fill", Color.red, "Blood Type", bloodType),
-                        ("allergens", Color.orange, "Allergies", allergies),
-                        ("cross.case.fill", Color.blue, "Conditions", conditions),
-                        ("pills.fill", Color.purple, "Medications", medications),
+                        ProfileInfoItem(icon: "drop.fill", tint: .mvDanger, label: "Blood Type", value: bloodType),
+                        ProfileInfoItem(icon: "allergens", tint: .mvWarning, label: "Allergies", value: allergies, localizeValue: allergies == "None"),
+                        ProfileInfoItem(icon: "cross.case.fill", tint: .mvAccent, label: "Conditions", value: conditions, localizeValue: conditions == "None"),
+                        ProfileInfoItem(icon: "pills.fill", tint: .mvSuccess, label: "Medications", value: medications, localizeValue: medications == "None")
                     ])
 
                     languageCard
-
                     mealTimesCard
 
                     CaregiverAlertsCard()
 
                     infoCard(title: "Account", items: [
-                        ("envelope.fill", Color.orange, "Email", accountEmail),
-                        ("phone.fill", Color.green, "Phone", phone.isEmpty ? "—" : phone),
+                        ProfileInfoItem(icon: "envelope.fill", tint: .mvAccent, label: "Email", value: accountEmail),
+                        ProfileInfoItem(icon: "phone.fill", tint: .mvSuccess, label: "Phone", value: phone.isEmpty ? "—" : phone)
                     ])
 
                     if let signOutError {
-                        Text(signOutError)
-                            .font(.body)
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 20)
+                        Label(signOutError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.mvDanger)
+                            .padding(15)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .glassCard()
                     }
 
                     Button {
                         Task { await signOut() }
                     } label: {
                         ZStack {
-                            Text("Sign Out")
-                                .font(.title3)
-                                .fontWeight(.semibold)
+                            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                                 .opacity(isSigningOut ? 0 : 1)
                             if isSigningOut {
-                                ProgressView()
+                                ProgressView().tint(Color.mvDanger)
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 56)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
+                    .buttonStyle(MVSecondaryButtonStyle(tint: .mvDanger))
                     .disabled(isSigningOut)
-                    .padding(.horizontal, 20)
-                    .accessibilityLabel(Text("Sign Out"))
+                    .accessibilityLabel("Sign Out")
                 }
-                .padding(.bottom, 32)
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, 28)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Edit") { showEditSheet = true }
-                }
-            }
+            .scrollIndicators(.hidden)
+            .mvScreenBackground()
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showEditSheet) {
                 EditProfileSheet(
                     firstName: $firstName,
@@ -158,33 +121,85 @@ struct ProfileView: View {
         }
     }
 
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Profile")
+                    .font(.system(size: 31, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.mvInk)
+                Text("Your health and account preferences")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.mvSubtle)
+            }
+            Spacer()
+            Button("Edit") { showEditSheet = true }
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Color.mvAccent)
+                .padding(.horizontal, 15)
+                .padding(.vertical, 10)
+                .background(Color.mvAccent.opacity(0.13), in: Capsule())
+        }
+    }
+
+    private var identityCard: some View {
+        VStack(spacing: 15) {
+            Text(initials)
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.mvOnAccent)
+                .frame(width: 82, height: 82)
+                .background(
+                    LinearGradient(
+                        colors: [Color.mvAccentGradientStart, Color.mvAccentGradientEnd],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: Circle()
+                )
+                .overlay(Circle().stroke(Color.white.opacity(0.55), lineWidth: 2))
+                .shadow(color: Color.mvAccent.opacity(0.3), radius: 14, x: 0, y: 7)
+                .accessibilityHidden(true)
+
+            Text("\(displayFirstName) \(displayLastName)")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(Color.mvInk)
+                .multilineTextAlignment(.center)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    statPill(value: gender, label: "Gender", localizeValue: true)
+                    statPill(value: ageDisplay, label: "Age")
+                    statPill(value: birthdayDisplay, label: "Birthday")
+                }
+                VStack(spacing: 8) {
+                    statPill(value: gender, label: "Gender", localizeValue: true)
+                    HStack(spacing: 8) {
+                        statPill(value: ageDisplay, label: "Age")
+                        statPill(value: birthdayDisplay, label: "Birthday")
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(22)
+        .glassCard()
+    }
+
     private var languageCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Language")
-                .font(.footnote)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 6)
-
-            VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
+            MVSectionHeader(title: "Language", systemImage: "globe")
+            VStack(alignment: .leading, spacing: 13) {
                 Text("App language")
-                    .font(.body)
-                    .fontWeight(.medium)
-
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.mvInk)
                 Picker("Language", selection: $displayLanguage) {
                     Text("English").tag("en")
                     Text(verbatim: "ไทย").tag("th")
                 }
                 .pickerStyle(.segmented)
-                .accessibilityLabel(Text("App language"))
+                .accessibilityLabel("App language")
             }
             .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .padding(.horizontal, 20)
+            .glassCard()
             .onChange(of: displayLanguage) { _, newValue in
                 displayLanguage = AppLanguage.code(for: newValue)
             }
@@ -192,38 +207,39 @@ struct ProfileView: View {
     }
 
     private var mealTimesCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Meal times")
-                .font(.footnote)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 6)
-
-            VStack(spacing: 16) {
-                mealTimeRow(title: "Breakfast", seconds: $breakfastSeconds)
-                mealTimeRow(title: "Lunch", seconds: $lunchSeconds)
-                mealTimeRow(title: "Dinner", seconds: $dinnerSeconds)
+        VStack(alignment: .leading, spacing: 10) {
+            MVSectionHeader(title: "Meal times", systemImage: "fork.knife")
+            VStack(spacing: 0) {
+                mealTimeRow(title: "Breakfast", systemImage: "sunrise.fill", seconds: $breakfastSeconds)
+                Divider().overlay(Color.mvBorder.opacity(0.45))
+                mealTimeRow(title: "Lunch", systemImage: "sun.max.fill", seconds: $lunchSeconds)
+                Divider().overlay(Color.mvBorder.opacity(0.45))
+                mealTimeRow(title: "Dinner", systemImage: "sunset.fill", seconds: $dinnerSeconds)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 15)
+            .glassCard()
         }
     }
 
-    private func mealTimeRow(title: LocalizedStringKey, seconds: Binding<Int>) -> some View {
-        DatePicker(
-            title,
-            selection: Binding(
-                get: { date(fromSeconds: seconds.wrappedValue) },
-                set: { seconds.wrappedValue = secondsFromMidnight(of: $0) }
-            ),
-            displayedComponents: .hourAndMinute
-        )
-        .font(.title3)
+    private func mealTimeRow(
+        title: LocalizedStringKey,
+        systemImage: String,
+        seconds: Binding<Int>
+    ) -> some View {
+        HStack(spacing: 12) {
+            MVIconTile(systemImage: systemImage, tint: .mvAccent, size: 38)
+            DatePicker(
+                title,
+                selection: Binding(
+                    get: { date(fromSeconds: seconds.wrappedValue) },
+                    set: { seconds.wrappedValue = secondsFromMidnight(of: $0) }
+                ),
+                displayedComponents: .hourAndMinute
+            )
+            .font(.body)
+            .tint(Color.mvAccent)
+        }
+        .padding(.vertical, 11)
         .accessibilityLabel(Text(title))
     }
 
@@ -285,7 +301,7 @@ struct ProfileView: View {
         label: LocalizedStringKey,
         localizeValue: Bool = false
     ) -> some View {
-        VStack(spacing: 1) {
+        VStack(spacing: 2) {
             Group {
                 if localizeValue {
                     Text(LocalizedStringKey(value))
@@ -293,70 +309,64 @@ struct ProfileView: View {
                     Text(verbatim: value)
                 }
             }
-            .font(.caption)
-            .fontWeight(.semibold)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(Color.mvInk)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
             Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(Color.mvSubtle)
                 .textCase(.uppercase)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 11)
+        .padding(.vertical, 7)
+        .background(Color.mvAccent.opacity(0.11), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
-    private func infoCard(title: String, items: [(String, Color, String, String)]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(LocalizedStringKey(title))
-                .font(.footnote)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 6)
-
+    private func infoCard(title: LocalizedStringKey, items: [ProfileInfoItem]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            MVSectionHeader(title: title)
             VStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                    let (icon, color, label, value) = item
-                    let showsLocalizedValue = value == "None"
-                        || ["Male", "Female", "Non-binary", "Prefer not to say", "Unknown"].contains(value)
-
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     if index > 0 {
-                        Divider().padding(.leading, 56)
+                        Divider()
+                            .overlay(Color.mvBorder.opacity(0.45))
+                            .padding(.leading, 52)
                     }
-
                     HStack(spacing: 12) {
-                        Image(systemName: icon)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(color)
-                            .frame(width: 30, height: 30)
-                            .background(color.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                        Text(LocalizedStringKey(label))
+                        MVIconTile(systemImage: item.icon, tint: item.tint, size: 38)
+                        Text(item.label)
+                            .foregroundStyle(Color.mvInk)
                         Spacer()
                         Group {
-                            if showsLocalizedValue {
-                                Text(LocalizedStringKey(value))
+                            if item.localizeValue {
+                                Text(LocalizedStringKey(item.value))
                             } else {
-                                Text(verbatim: value)
+                                Text(verbatim: item.value)
                             }
                         }
-                        .foregroundStyle(.secondary)
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.mvSubtle)
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(2)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 13)
+                    .font(.body)
+                    .padding(.vertical, 11)
+                    .accessibilityElement(children: .combine)
                 }
             }
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 15)
+            .glassCard()
         }
     }
+}
+
+private struct ProfileInfoItem: Identifiable {
+    let id = UUID()
+    let icon: String
+    let tint: Color
+    let label: LocalizedStringKey
+    let value: String
+    var localizeValue = false
 }
 
 struct EditProfileSheet: View {
@@ -398,8 +408,7 @@ struct EditProfileSheet: View {
                         }
                     }
                     DatePicker("Birthday", selection: birthdayBinding, displayedComponents: .date)
-                        .tint(.black)
-                        .foregroundStyle(.black)
+                        .tint(Color.mvAccent)
                 }
 
                 Section("Health") {
@@ -413,21 +422,21 @@ struct EditProfileSheet: View {
                             .multilineTextAlignment(.trailing)
                     } label: {
                         Label("Allergies", systemImage: "allergens")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.mvWarning)
                     }
                     LabeledContent {
                         TextField("None", text: $conditions)
                             .multilineTextAlignment(.trailing)
                     } label: {
                         Label("Conditions", systemImage: "cross.case.fill")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Color.mvAccent)
                     }
                     LabeledContent {
                         TextField("None", text: $medications)
                             .multilineTextAlignment(.trailing)
                     } label: {
                         Label("Medications", systemImage: "pills.fill")
-                            .foregroundStyle(.purple)
+                            .foregroundStyle(Color.mvSuccess)
                     }
                 }
 
@@ -437,12 +446,16 @@ struct EditProfileSheet: View {
                         .keyboardType(.phonePad)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .mvScreenBackground()
             .navigationTitle("Edit Profile")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .fontWeight(.semibold)
+                        .foregroundStyle(Color.mvAccent)
                 }
             }
         }

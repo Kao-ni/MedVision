@@ -27,7 +27,9 @@ struct OnboardingView: View {
     @State private var selectedAllergies: Set<String> = []
     @State private var allergyOtherText = ""
     @State private var showAllergyOther = false
+    @State private var showAllergyChips = false
     @State private var noAllergies = false
+    @FocusState private var allergyOtherFocused: Bool
     @State private var selectedConditions: Set<String> = []
     @State private var conditionSearch = ""
     @State private var noConditions = false
@@ -147,7 +149,7 @@ struct OnboardingView: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(Color.mvInk)
                         .frame(width: 54, height: 54)
-                        .glassCard(cornerRadius: 14)
+                        .onboardingCard(cornerRadius: 14)
                 }
             }
 
@@ -240,7 +242,7 @@ struct OnboardingView: View {
             Spacer()
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.5))
+                    .fill(Color.mvSurface.opacity(0.55))
                     .frame(width: 200, height: 200)
                 Image(systemName: page.systemImage)
                     .font(.system(size: 84))
@@ -278,7 +280,7 @@ struct OnboardingView: View {
             )
             .frame(height: 200)
             .padding(.horizontal, 8)
-            .glassCard()
+            .onboardingCard()
             .padding(.horizontal, 24)
 
             Text("We use this to personalize your medication reminders.")
@@ -311,17 +313,17 @@ struct OnboardingView: View {
                                     if type == "Unknown" { Text("Unknown") } else { Text(verbatim: type) }
                                 }
                                 .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(bloodTypeInput == type ? .white : Color.mvInk)
+                                .foregroundStyle(bloodTypeInput == type ? Color.mvOnAccent : Color.mvInk)
                                 Spacer()
                                 if bloodTypeInput == type {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(Color.mvOnAccent)
                                 }
                             }
                             .padding(.horizontal, 18)
                             .frame(maxWidth: .infinity, minHeight: 56)
-                            .glassCard(selected: bloodTypeInput == type)
+                            .onboardingCard(selected: bloodTypeInput == type)
                         }
                         .buttonStyle(.plain)
                     }
@@ -341,56 +343,89 @@ struct OnboardingView: View {
                 .foregroundStyle(Color.mvSubtle)
 
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], alignment: .leading, spacing: 10) {
-                    ForEach(allergyLabels, id: \.self) { label in
-                        chip(label: label, selected: selectedAllergies.contains(label)) {
-                            noAllergies = false
-                            if selectedAllergies.contains(label) { selectedAllergies.remove(label) }
-                            else { selectedAllergies.insert(label) }
+                VStack(alignment: .leading, spacing: 12) {
+                    WrappingChipLayout(horizontalSpacing: 10, verticalSpacing: 10) {
+                        ForEach(Array(allergyLabels.enumerated()), id: \.offset) { index, label in
+                            chip(
+                                label: label,
+                                selected: selectedAllergies.contains(label),
+                                isVisible: showAllergyChips,
+                                entryDelay: Double(index) * 0.035
+                            ) {
+                                noAllergies = false
+                                if selectedAllergies.contains(label) { selectedAllergies.remove(label) }
+                                else { selectedAllergies.insert(label) }
+                            }
                         }
                     }
+
                     Button {
-                        withAnimation { showAllergyOther.toggle() }
+                        let willShow = !showAllergyOther
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
+                            showAllergyOther.toggle()
+                        }
+                        if willShow {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                allergyOtherFocused = true
+                            }
+                        } else {
+                            allergyOtherFocused = false
+                        }
                     } label: {
                         Text("＋ Add other")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.mvAccent)
-                            .padding(.horizontal, 16).padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.mvSurface.opacity(0.72), in: Capsule())
                             .overlay(
-                                RoundedRectangle(cornerRadius: 999)
+                                Capsule()
                                     .strokeBorder(Color.mvAccent.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, dash: [4]))
                             )
                     }
                     .buttonStyle(.plain)
-                }
 
-                if showAllergyOther {
-                    TextField("Type an allergy", text: $allergyOtherText)
-                        .padding(14)
-                        .glassCard(cornerRadius: 14)
-                        .padding(.top, 12)
-                        .onChange(of: allergyOtherText) { _, value in
-                            if !value.isEmpty { noAllergies = false }
-                        }
+                    if showAllergyOther {
+                        TextField("Type an allergy", text: $allergyOtherText)
+                            .focused($allergyOtherFocused)
+                            .padding(14)
+                            .onboardingCard(cornerRadius: 14)
+                            .padding(.top, 12)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .onChange(of: allergyOtherText) { _, value in
+                                if !value.isEmpty { noAllergies = false }
+                            }
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Button {
                 noAllergies.toggle()
-                if noAllergies { selectedAllergies.removeAll(); allergyOtherText = "" }
+                if noAllergies {
+                    selectedAllergies.removeAll()
+                    allergyOtherText = ""
+                    showAllergyOther = false
+                    allergyOtherFocused = false
+                }
             } label: {
                 Text("No known allergies")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(noAllergies ? .white : Color.mvInk)
+                    .foregroundStyle(noAllergies ? Color.mvOnAccent : Color.mvInk)
                     .frame(maxWidth: .infinity, minHeight: 54)
                     .background(noAllergies ? Color.mvAccent : nil)
-                    .glassCard(selected: noAllergies)
+                    .onboardingCard(selected: noAllergies)
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 24)
         .padding(.top, 40)
+        .onAppear {
+            showAllergyChips = false
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.86)) {
+                showAllergyChips = true
+            }
+        }
     }
 
     private var conditionsEntryView: some View {
@@ -407,7 +442,7 @@ struct OnboardingView: View {
                 TextField("Search conditions", text: $conditionSearch)
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
-            .glassCard(cornerRadius: 14)
+            .onboardingCard(cornerRadius: 14)
 
             ScrollView {
                 LazyVStack(spacing: 12) {
@@ -425,7 +460,7 @@ struct OnboardingView: View {
                                 checkbox(selected: selectedConditions.contains(label))
                             }
                             .padding(16)
-                            .glassCard(cornerRadius: 14)
+                            .onboardingCard(cornerRadius: 14)
                         }
                         .buttonStyle(.plain)
                     }
@@ -438,10 +473,10 @@ struct OnboardingView: View {
             } label: {
                 Text("No known conditions")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(noConditions ? .white : Color.mvInk)
+                    .foregroundStyle(noConditions ? Color.mvOnAccent : Color.mvInk)
                     .frame(maxWidth: .infinity, minHeight: 54)
                     .background(noConditions ? Color.mvAccent : nil)
-                    .glassCard(selected: noConditions)
+                    .onboardingCard(selected: noConditions)
             }
             .buttonStyle(.plain)
         }
@@ -494,35 +529,147 @@ struct OnboardingView: View {
             .labelsHidden()
         }
         .padding(16)
-        .glassCard(cornerRadius: 14)
+        .onboardingCard(cornerRadius: 14)
     }
 
-    private func chip(label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    private func chip(
+        label: String,
+        selected: Bool,
+        isVisible: Bool,
+        entryDelay: Double,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Text(verbatim: label)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(selected ? .white : Color.mvInk)
+                .foregroundStyle(selected ? Color.mvOnAccent : Color.mvInk)
                 .padding(.horizontal, 16).padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .background(selected ? Color.mvAccent : Color.white.opacity(0.5), in: Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.6), lineWidth: 1))
+                .background(selected ? Color.mvAccent : Color.mvSurface.opacity(0.72), in: Capsule())
+                .overlay(Capsule().stroke(selected ? Color.mvAccent : Color.mvBorder.opacity(0.75), lineWidth: 1))
+                .opacity(isVisible ? 1 : 0)
+                .offset(y: isVisible ? 0 : 10)
+                .scaleEffect(isVisible ? 1 : 0.98)
         }
         .buttonStyle(.plain)
+        .animation(
+            .spring(response: 0.55, dampingFraction: 0.86).delay(entryDelay),
+            value: isVisible
+        )
+        .animation(.spring(response: 0.3, dampingFraction: 0.82), value: selected)
     }
 
     private func checkbox(selected: Bool) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 7)
-                .fill(selected ? Color.mvAccent : Color.white)
+                .fill(selected ? Color.mvAccent : Color.mvSurface)
                 .frame(width: 24, height: 24)
             RoundedRectangle(cornerRadius: 7)
-                .stroke(selected ? Color.mvAccent : Color(hex: "D8DEE4"), lineWidth: 1.5)
+                .stroke(selected ? Color.mvAccent : Color.mvBorder, lineWidth: 1.5)
                 .frame(width: 24, height: 24)
             if selected {
                 Image(systemName: "checkmark")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.mvOnAccent)
             }
+        }
+    }
+}
+
+private struct OnboardingCard: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    var cornerRadius: CGFloat = 16
+    var selected: Bool = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                selected
+                    ? Color.mvAccent
+                    : Color.mvSurface.opacity(colorScheme == .dark ? 0.68 : 0.72),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+            .background(
+                .ultraThinMaterial,
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        selected ? Color.mvOnAccent.opacity(0.3) : Color.mvBorder.opacity(0.65),
+                        lineWidth: selected ? 1.5 : 1
+                    )
+            )
+            .shadow(color: Color.mvAccent.opacity(0.12), radius: 14, x: 0, y: 8)
+    }
+}
+
+private extension View {
+    func onboardingCard(cornerRadius: CGFloat = 16, selected: Bool = false) -> some View {
+        modifier(OnboardingCard(cornerRadius: cornerRadius, selected: selected))
+    }
+}
+
+private struct WrappingChipLayout: Layout {
+    var horizontalSpacing: CGFloat = 8
+    var verticalSpacing: CGFloat = 8
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let maxWidth = proposal.width ?? .greatestFiniteMagnitude
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var finalWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0, rowWidth + horizontalSpacing + size.width > maxWidth {
+                totalHeight += rowHeight + verticalSpacing
+                finalWidth = max(finalWidth, rowWidth)
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                rowWidth = rowWidth == 0 ? size.width : rowWidth + horizontalSpacing + size.width
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+
+        if rowWidth > 0 {
+            totalHeight += rowHeight
+            finalWidth = max(finalWidth, rowWidth)
+        }
+
+        return CGSize(width: proposal.width ?? finalWidth, height: totalHeight)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + verticalSpacing
+                rowHeight = 0
+            }
+
+            subview.place(
+                at: CGPoint(x: x, y: y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
         }
     }
 }
@@ -615,7 +762,7 @@ private struct BirthdayWheelPicker: UIViewRepresentable {
             return NSAttributedString(
                 string: title,
                 attributes: [
-                    .foregroundColor: UIColor.black,
+                    .foregroundColor: UIColor.label,
                     .font: UIFont.systemFont(ofSize: 20, weight: .regular)
                 ]
             )
@@ -686,15 +833,20 @@ private struct SettingUpView: View {
 
     var body: some View {
         ZStack {
-            Color.mvSky.ignoresSafeArea()
+            LinearGradient(
+                colors: [Color.mvAccentGradientStart, Color.mvAccentGradientEnd],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             VStack(spacing: 14) {
                 Text("Setting things up…")
                     .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.mvOnAccent)
                     .opacity(animate ? 1 : 0.5)
                 Text("This will only take a moment.")
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(Color.mvOnAccent.opacity(0.82))
             }
         }
         .onAppear {
