@@ -9,6 +9,10 @@ import PhotosUI
 //
 // Golden rule: never auto-save - the user always confirms before anything is written.
 struct AddMedicineView: View {
+    private enum Field: Hashable {
+        case name, dosage, barcode, notes, frequencyNote
+    }
+
     var prefilled: RecognizedMedicine? = nil
     var existing: Medicine? = nil
     var initialPhotoData: Data? = nil
@@ -28,6 +32,7 @@ struct AddMedicineView: View {
     @State private var frequencyNote: String
     @State private var photoItem: PhotosPickerItem?
     @State private var photoData: Data?
+    @FocusState private var focusedField: Field?
 
     private var isEditing: Bool  { existing != nil }
     private var isOCRResult: Bool { prefilled != nil && existing == nil }
@@ -118,6 +123,9 @@ struct AddMedicineView: View {
                     LabeledContent {
                         TextField("e.g. Paracetamol", text: $name)
                             .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .name)
+                            .submitLabel(.next)
+                            .onSubmit { focusedField = .dosage }
                     } label: {
                         Text("Name")
                     }
@@ -125,6 +133,9 @@ struct AddMedicineView: View {
                     LabeledContent {
                         TextField("e.g. 500 mg", text: $dosage)
                             .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .dosage)
+                            .submitLabel(.next)
+                            .onSubmit { focusedField = .barcode }
                     } label: {
                         Text("Dosage")
                     }
@@ -134,6 +145,9 @@ struct AddMedicineView: View {
                             .multilineTextAlignment(.trailing)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                            .focused($focusedField, equals: .barcode)
+                            .submitLabel(.next)
+                            .onSubmit { focusedField = .notes }
                     } label: {
                         Text("Barcode")
                     }
@@ -148,6 +162,7 @@ struct AddMedicineView: View {
                 Section("Notes") {
                     TextField("e.g. Take with food", text: $notes, axis: .vertical)
                         .lineLimit(3, reservesSpace: true)
+                        .focused($focusedField, equals: .notes)
                 }
 
                 scheduleSection
@@ -164,12 +179,16 @@ struct AddMedicineView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { close() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") { save() }
                         .fontWeight(.semibold)
                         .disabled(isSaveDisabled)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { focusedField = nil }
                 }
             }
         }
@@ -204,6 +223,7 @@ struct AddMedicineView: View {
 
             if !scheduledTimes.isEmpty {
                 TextField("Note (e.g. with food, after meal)", text: $frequencyNote)
+                    .focused($focusedField, equals: .frequencyNote)
             }
         } header: {
             Text("Reminder Schedule")
@@ -295,7 +315,15 @@ struct AddMedicineView: View {
 
         generateTodayEvents(for: medicine, newTimes: sorted)
         Task { await NotificationService.shared.schedule(for: medicine) }
-        dismiss()
+        close()
+    }
+
+    private func close() {
+        focusedField = nil
+        // Let UIKit finish ending the text-input session before removing the sheet.
+        DispatchQueue.main.async {
+            dismiss()
+        }
     }
 
     private func generateTodayEvents(for medicine: Medicine, newTimes: [Date]) {
