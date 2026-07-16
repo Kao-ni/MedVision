@@ -83,7 +83,69 @@ async function callTyphoon(blob: Blob, contentType: string) {
     throw new UpstreamError("Typhoon OCR returned no readable text");
   }
 
-  return { rawText: text, upstream: payload };
+  return { rawText: text };
+}
+
+async function callTyphoonParser(rawText: string) {
+  const apiKey = getEnv("TYPHOON_API_KEY");
+  const baseUrl = getEnv("TYPHOON_BASE_URL", "https://api.opentyphoon.ai/v1");
+  const model = getEnv("TYPHOON_PARSE_MODEL", "typhoon-v2.5-30b-a3b-instruct");
+  const prompt = getEnv(
+    "TYPHOON_PARSE_PROMPT",
+    [
+      "You are a medicine label parser for a medication reminder app.",
+      "Convert the OCR text into STRICT JSON ONLY with these keys:",
+      "{",
+      '  "is_medicine": true | false,',
+      '  "name": string | null,',
+      '  "dosage": string | null,',
+      '  "form": "tablet" | "capsule" | "liquid" | "injection" | "drops" | "cream" | "inhaler" | "patch" | "powder" | "other" | null,',
+      '  "notes": string | null,',
+      '  "warnings": string[]',
+      "}",
+      "If the text is not medicine, set is_medicine to false, set all fields to null except warnings, and explain briefly in warnings.",
+      "Do not add markdown, code fences, or commentary.",
+      "OCR TEXT:",
+      rawText
+    ].join("\n")
+  );
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 600,
+      messages: [
+        {
+          role: "system",
+          content: "You extract structured medicine data from OCR text. Return strict JSON only."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    throw new UpstreamError("Typhoon parse request failed", {
+      status: response.status,
+      body: await response.text()
+    });
+  }
+
+  const payload = await response.json();
+  const text = extractTyphoonText(payload).trim();
+  if (!text) {
+    throw new UpstreamError("Typhoon parse returned no readable text");
+  }
+
+  return { structuredText: text };
 }
 
 Deno.serve((request) => withErrorHandling(request, async () => {
@@ -135,7 +197,8 @@ Deno.serve((request) => withErrorHandling(request, async () => {
 
   try {
     const typhoon = await callTyphoon(image, contentType);
-    const parsedMedicine = parseRecognizedMedicine(typhoon.rawText);
+    const parsed = await callTyphoonParser(typhoon.rawText);
+    const parsedMedicine = parseRecognizedMedicine(parsed.structuredText);
 
     const updated = await adminClient
       .from("recognition_jobs")

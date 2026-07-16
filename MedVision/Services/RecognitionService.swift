@@ -17,6 +17,7 @@ enum RecognitionError: LocalizedError {
     case badResponse
     case serviceError(String)
     case noTextFound
+    case notMedicine
     case parsingFailed
 
     var errorDescription: String? {
@@ -33,6 +34,8 @@ enum RecognitionError: LocalizedError {
             return message
         case .noTextFound:
             return "No text could be read from the photo."
+        case .notMedicine:
+            return "This doesn't look like a medicine label. You can enter it manually instead."
         case .parsingFailed:
             return "Couldn't extract medicine details from the photo."
         }
@@ -47,7 +50,7 @@ struct RecognitionService {
         guard PrototypeOCRConfig.isConfigured else {
             throw RecognitionError.notConfigured
         }
-        let resized = image.resized(toMaxDimension: 1920)
+        let resized = image.resized(toMaxDimension: 1280)
         guard let imageData = resized.jpegData(compressionQuality: 0.80) else {
             throw RecognitionError.invalidImageData
         }
@@ -72,11 +75,7 @@ struct RecognitionService {
             throw RecognitionError.networkError(error)
         }
 
-        let parsed = parseRecognizedMedicine(from: structuredJSON, photoData: imageData)
-        guard !parsed.name.isEmpty else {
-            throw RecognitionError.parsingFailed
-        }
-        return parsed
+        return try parseRecognizedMedicine(from: structuredJSON, photoData: imageData)
     }
 
     // Sends the image to the OCR model and returns the raw extracted text.
@@ -263,6 +262,7 @@ struct RecognitionService {
 
         let body: [String: Any] = [
             "model": PrototypeOCRConfig.parseModel,
+            "max_tokens": 600,
             "messages": [
                 [
                     "role": "system",
@@ -294,7 +294,7 @@ struct RecognitionService {
         return text
     }
 
-    private func parseRecognizedMedicine(from rawText: String, photoData: Data) -> RecognizedMedicine {
+    private func parseRecognizedMedicine(from rawText: String, photoData: Data) throws -> RecognizedMedicine {
         // Strip markdown code fences some models wrap around JSON
         let jsonString = rawText
             .replacingOccurrences(of: #"^```json\s*"#, with: "", options: .regularExpression)
@@ -302,16 +302,37 @@ struct RecognitionService {
             .replacingOccurrences(of: #"\s*```$"#, with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard let data = jsonString.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return RecognizedMedicine(photoData: photoData)
+        if let data = jsonString.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            return try parseStructuredMedicine(from: json, photoData: photoData)
         }
 
-        let name = json["name"] as? String ?? ""
-        let dosage = json["dosage"] as? String ?? ""
-        let notes = json["notes"] as? String ?? ""
-        let formString = json["form"] as? String ?? ""
-        let form = mapForm(formString)
+        throw RecognitionError.parsingFailed
+    }
+
+    private func parseStructuredMedicine(from json: [String: Any], photoData: Data) throws -> RecognizedMedicine {
+        let isMedicine = json["is_medicine"] as? Bool ?? true
+        guard isMedicine else {
+            throw RecognitionError.notMedicine
+        }
+
+        let name = firstString(
+            from: json,
+            keys: ["name", "medicine_name", "brand_name", "product_name"]
+        )
+        guard !name.isEmpty else {
+            throw RecognitionError.parsingFailed
+        }
+
+        let dosage = firstString(
+            from: json,
+            keys: ["dosage", "strength", "dose", "dose_strength"]
+        )
+        let notes = firstString(
+            from: json,
+            keys: ["notes", "warning", "frequency_note", "frequencyNote"]
+        )
+        let form = mapForm(firstString(from: json, keys: ["form", "dosage_form", "route"]))
 
         return RecognizedMedicine(
             name: name,
@@ -320,6 +341,45 @@ struct RecognitionService {
             notes: notes,
             photoData: photoData
         )
+    }
+
+    private func stringValue(_ value: Any?) -> String {
+        if let string = value as? String {
+            return string.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let number = value as? NSNumber {
+            return number.stringValue
+        }
+        return ""
+    }
+
+    private func firstString(from json: [String: Any], keys: [String]) -> String {
+        let containerKeys = ["medicine", "parsed", "result", "data", "payload", "fields"]
+
+        for key in keys {
+            let direct = stringValue(json[key])
+            if !direct.isEmpty {
+                return direct
+            }
+        }
+
+        for containerKey in containerKeys {
+            if let nested = json[containerKey] as? [String: Any] {
+                let nestedValue = firstString(from: nested, keys: keys)
+                if !nestedValue.isEmpty {
+                    return nestedValue
+                }
+            } else if let nestedArray = json[containerKey] as? [[String: Any]] {
+                for entry in nestedArray {
+                    let nestedValue = firstString(from: entry, keys: keys)
+                    if !nestedValue.isEmpty {
+                        return nestedValue
+                    }
+                }
+            }
+        }
+
+        return ""
     }
 
     private func mapForm(_ text: String) -> MedicineForm {
