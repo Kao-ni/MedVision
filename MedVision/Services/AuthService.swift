@@ -34,8 +34,8 @@ final class AuthService {
     let client: SupabaseClient
     private var authListenerTask: Task<Void, Never>?
 
-    init(client: SupabaseClient = SupabaseConfig.makeClient()) {
-        self.client = client
+    init() {
+        self.client = SupabaseConfig.makeClient()
         self.isConfigured = SupabaseConfig.isConfigured
         startAuthListener()
         Task { await restoreSession() }
@@ -161,7 +161,7 @@ final class AuthService {
         guard isConfigured else { return }
         authListenerTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await (event, session) in await self.client.auth.authStateChanges {
+            for await (event, session) in self.client.auth.authStateChanges {
                 switch event {
                 case .initialSession, .signedIn, .tokenRefreshed, .userUpdated:
                     self.session = Self.validSession(session)
