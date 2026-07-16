@@ -12,20 +12,31 @@ test("accepts a valid medicine payload", () => {
   const payload = validateMedicinePayload({
     name: "Paracetamol",
     dosage: "500 mg",
-    form: "pill",
+    form: "tablet",
+    barcode: "0123456789012",
     notes: "After meals",
     frequencyNote: "Twice daily"
   });
 
   assert.equal(payload.name, "Paracetamol");
-  assert.equal(payload.form, "pill");
+  assert.equal(payload.form, "tablet");
+  assert.equal(payload.barcode, "0123456789012");
 });
 
 test("rejects an invalid medicine form", () => {
   assert.throws(
-    () => validateMedicinePayload({ name: "Paracetamol", form: "capsule" }),
+    () => validateMedicinePayload({ name: "Paracetamol", form: "suppository" }),
     ValidationError
   );
+});
+
+test("normalizes legacy pill forms to tablet", () => {
+  const payload = validateMedicinePayload({
+    name: "Paracetamol",
+    form: "pill"
+  });
+
+  assert.equal(payload.form, "tablet");
 });
 
 test("accepts a supported image upload", () => {

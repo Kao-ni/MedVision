@@ -1,7 +1,10 @@
+import { normalizeMedicineForm } from "./contracts.js";
+
 const DOSAGE_REGEX = /(\b\d+(?:\.\d+)?\s?(?:mg|mcg|g|ml|iu)\b)/i;
 
 const FORM_KEYWORDS = [
-  ["pill", ["tablet", "tablets", "pill", "capsule", "caplet"]],
+  ["capsule", ["capsule", "capsules", "caplet"]],
+  ["tablet", ["tablet", "tablets", "pill", "pill(s)"]],
   ["liquid", ["syrup", "suspension", "liquid"]],
   ["injection", ["inject", "injection", "vial"]],
   ["patch", ["patch"]],
@@ -71,7 +74,7 @@ function firstStringFromObject(object, keys) {
 }
 
 function inferForm(text) {
-  const normalized = text.toLowerCase();
+  const normalized = normalizeMedicineForm(text);
   for (const [form, keywords] of FORM_KEYWORDS) {
     if (keywords.some((keyword) => normalized.includes(keyword))) {
       return form;
@@ -83,7 +86,7 @@ function inferForm(text) {
 function extractName(line, dosage) {
   if (!line) return "";
   let name = dosage ? line.replace(dosage, "") : line;
-  name = name.replace(/\b(tablets?|capsules?|pill|liquid|syrup|injection|patch|inhaler)\b/gi, " ");
+  name = name.replace(/\b(tablets?|capsules?|caplets?|pill|liquid|syrup|injection|patch|inhaler)\b/gi, " ");
   name = name.replace(/\s+/g, " ").trim();
   return name || line.trim();
 }
@@ -108,7 +111,8 @@ function parseStructuredMedicine(json, rawText) {
   }
 
   const dosage = firstStringFromObject(json, ["dosage", "strength", "dose", "dose_strength"]);
-  const form = inferForm(firstStringFromObject(json, ["form", "dosage_form", "route"]) || rawText);
+  const structuredForm = normalizeMedicineForm(firstStringFromObject(json, ["form", "dosage_form", "route"]));
+  const form = structuredForm ? inferForm(structuredForm) : inferForm(rawText);
   const notes = firstStringFromObject(json, ["notes", "warning", "frequency_note", "frequencyNote"]);
   const warnings = Array.isArray(json?.warnings)
     ? json.warnings.map((entry) => String(entry).trim()).filter(Boolean)
