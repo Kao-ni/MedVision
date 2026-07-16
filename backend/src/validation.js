@@ -1,4 +1,10 @@
-import { DOSE_EVENT_STATUSES, MAX_IMAGE_BYTES, MEDICINE_FORMS, SUPPORTED_IMAGE_TYPES } from "./contracts.js";
+import {
+  DOSE_EVENT_STATUSES,
+  MAX_IMAGE_BYTES,
+  MEDICINE_FORMS,
+  SUPPORTED_IMAGE_TYPES,
+  normalizeMedicineForm
+} from "./contracts.js";
 import { ValidationError } from "./errors.js";
 
 function asTrimmedString(value, fieldName, { required = false, fallback = "" } = {}) {
@@ -37,7 +43,8 @@ export function validateMedicinePayload(input) {
   const dosage = asTrimmedString(input.dosage, "dosage");
   const notes = asTrimmedString(input.notes, "notes");
   const frequencyNote = asTrimmedString(input.frequencyNote, "frequencyNote");
-  const form = asTrimmedString(input.form ?? "pill", "form", { required: true }).toLowerCase();
+  const barcode = asTrimmedString(input.barcode, "barcode");
+  const form = normalizeMedicineForm(asTrimmedString(input.form ?? "tablet", "form", { required: true }));
 
   if (!MEDICINE_FORMS.includes(form)) {
     throw new ValidationError("form must be one of the supported medicine forms", {
@@ -45,7 +52,7 @@ export function validateMedicinePayload(input) {
     });
   }
 
-  return { name, dosage, form, notes, frequencyNote };
+  return { name, dosage, form, notes, frequencyNote, barcode };
 }
 
 export function validateSchedulePayload(input) {

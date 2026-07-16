@@ -10,7 +10,7 @@ Deno.serve((request) => withErrorHandling(request, async () => {
   if (request.method === "GET") {
     const query = userClient
       .from("medicines")
-      .select("id, name, dosage, form, notes, image_path, source, frequency_note, created_at, updated_at")
+      .select("id, name, dosage, form, notes, barcode, image_path, source, frequency_note, created_at, updated_at")
       .order("updated_at", { ascending: false });
 
     const result = id ? await query.eq("id", id).maybeSingle() : await query;
@@ -30,6 +30,7 @@ Deno.serve((request) => withErrorHandling(request, async () => {
         dosage: payload.dosage,
         form: payload.form,
         notes: payload.notes,
+        barcode: payload.barcode || null,
         source: "manual",
         frequency_note: payload.frequencyNote
       })
@@ -61,6 +62,7 @@ Deno.serve((request) => withErrorHandling(request, async () => {
       dosage: input.dosage ?? existing.data.dosage,
       form: input.form ?? existing.data.form,
       notes: input.notes ?? existing.data.notes,
+      barcode: input.barcode ?? existing.data.barcode,
       frequencyNote: input.frequencyNote ?? existing.data.frequency_note
     });
 
@@ -71,6 +73,7 @@ Deno.serve((request) => withErrorHandling(request, async () => {
         dosage: payload.dosage,
         form: payload.form,
         notes: payload.notes,
+        barcode: payload.barcode || null,
         frequency_note: payload.frequencyNote
       })
       .eq("id", id)
