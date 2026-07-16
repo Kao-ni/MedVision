@@ -1,3 +1,4 @@
+import UIKit
 import SwiftUI
 
 private struct OnboardingPage {
@@ -10,7 +11,6 @@ private struct OnboardingPage {
 struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
-    @AppStorage("profile_age") private var storedAge = ""
     @AppStorage("profile_birthdayTimestamp") private var storedBirthdayTimestamp = Date().timeIntervalSince1970
     @AppStorage("profile_bloodType") private var storedBloodType = ""
     @AppStorage("profile_allergies") private var storedAllergies = "None"
@@ -20,7 +20,6 @@ struct OnboardingView: View {
     @AppStorage("meal_dinnerSeconds") private var storedDinnerSeconds = 18 * 60 * 60
 
     @State private var currentPage = 0
-    @State private var ageInput = ""
     @State private var birthDay = 15
     @State private var birthMonth = 6
     @State private var birthYear = 2000
@@ -36,7 +35,6 @@ struct OnboardingView: View {
     @State private var lunchTime = MealTime(hour: 12, minute: 0)
     @State private var dinnerTime = MealTime(hour: 18, minute: 0)
     @State private var showLoader = false
-    @FocusState private var isAgeFieldFocused: Bool
 
     private struct MealTime {
         var hour: Int
@@ -77,21 +75,16 @@ struct OnboardingView: View {
     ]
     private let months = Calendar.current.monthSymbols
 
-    private var agePageIndex: Int { pages.count }
-    private var birthdayPageIndex: Int { pages.count + 1 }
-    private var bloodTypePageIndex: Int { pages.count + 2 }
-    private var allergiesPageIndex: Int { pages.count + 3 }
-    private var conditionsPageIndex: Int { pages.count + 4 }
-    private var mealTimesPageIndex: Int { pages.count + 5 }
-    private var totalPageCount: Int { pages.count + 6 }
+    private var birthdayPageIndex: Int { pages.count }
+    private var bloodTypePageIndex: Int { pages.count + 1 }
+    private var allergiesPageIndex: Int { pages.count + 2 }
+    private var conditionsPageIndex: Int { pages.count + 3 }
+    private var mealTimesPageIndex: Int { pages.count + 4 }
+    private var totalPageCount: Int { pages.count + 5 }
 
-    private var isAgeValid: Bool {
-        guard let age = Int(ageInput) else { return false }
-        return (1...120).contains(age)
-    }
     private var isCurrentPageValid: Bool {
         switch currentPage {
-        case agePageIndex: return isAgeValid
+        case birthdayPageIndex: return isBirthdayValid
         case bloodTypePageIndex: return !bloodTypeInput.isEmpty
         case allergiesPageIndex:
             return noAllergies || !selectedAllergies.isEmpty || !allergyOtherText.trimmingCharacters(in: .whitespaces).isEmpty
@@ -108,7 +101,6 @@ struct OnboardingView: View {
                     ForEach(pages.indices, id: \.self) { index in
                         pageView(pages[index]).tag(index)
                     }
-                    ageEntryView.tag(agePageIndex)
                     birthdayEntryView.tag(birthdayPageIndex)
                     bloodTypeEntryView.tag(bloodTypePageIndex)
                     allergiesEntryView.tag(allergiesPageIndex)
@@ -116,9 +108,6 @@ struct OnboardingView: View {
                     mealTimesEntryView.tag(mealTimesPageIndex)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .onChange(of: currentPage) { _, newPage in
-                    isAgeFieldFocused = newPage == agePageIndex
-                }
 
                 pageDots
                     .padding(.top, 16)
@@ -173,7 +162,6 @@ struct OnboardingView: View {
     }
 
     private func advance() {
-        if currentPage == agePageIndex { storedAge = ageInput }
         if currentPage == birthdayPageIndex { persistBirthday() }
         if currentPage == bloodTypePageIndex { storedBloodType = bloodTypeInput }
         if currentPage == allergiesPageIndex { persistAllergies() }
@@ -187,7 +175,6 @@ struct OnboardingView: View {
     }
 
     private func finish() {
-        storedAge = ageInput
         persistBirthday()
         storedBloodType = bloodTypeInput
         persistAllergies()
@@ -212,6 +199,19 @@ struct OnboardingView: View {
         if let date = Calendar.current.date(from: comps) {
             storedBirthdayTimestamp = date.timeIntervalSince1970
         }
+    }
+
+    private var isBirthdayValid: Bool {
+        guard let birthday = birthdayDate else { return false }
+        return birthday <= Date()
+    }
+
+    private var birthdayDate: Date? {
+        var comps = DateComponents()
+        comps.year = birthYear
+        comps.month = birthMonth
+        comps.day = birthDay
+        return Calendar.current.date(from: comps)
     }
 
     private func persistAllergies() {
@@ -262,31 +262,6 @@ struct OnboardingView: View {
         }
     }
 
-    private var ageEntryView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Text("How old are you?")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(Color.mvInk)
-                .multilineTextAlignment(.center)
-            TextField("Age", text: $ageInput)
-                .font(.system(size: 44, weight: .semibold))
-                .foregroundStyle(Color.mvInk)
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.center)
-                .focused($isAgeFieldFocused)
-                .frame(maxWidth: 180)
-                .padding(.vertical, 16)
-                .glassCard()
-                .onChange(of: ageInput) { _, newValue in
-                    ageInput = String(newValue.filter(\.isNumber).prefix(3))
-                }
-            Spacer()
-            Spacer()
-        }
-        .padding(.horizontal, 32)
-    }
-
     private var birthdayEntryView: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -295,22 +270,12 @@ struct OnboardingView: View {
                 .foregroundStyle(Color.mvAccent)
                 .multilineTextAlignment(.center)
 
-            HStack(spacing: 0) {
-                Picker("Day", selection: $birthDay) {
-                    ForEach(1...31, id: \.self) { Text("\($0)").tag($0) }
-                }
-                .pickerStyle(.wheel).frame(maxWidth: .infinity).clipped()
-
-                Picker("Month", selection: $birthMonth) {
-                    ForEach(1...12, id: \.self) { Text(verbatim: months[$0 - 1]).tag($0) }
-                }
-                .pickerStyle(.wheel).frame(maxWidth: .infinity).clipped()
-
-                Picker("Year", selection: $birthYear) {
-                    ForEach(1950...2026, id: \.self) { Text(verbatim: String($0)).tag($0) }
-                }
-                .pickerStyle(.wheel).frame(maxWidth: .infinity).clipped()
-            }
+            BirthdayWheelPicker(
+                day: $birthDay,
+                month: $birthMonth,
+                year: $birthYear,
+                monthSymbols: months
+            )
             .frame(height: 200)
             .padding(.horizontal, 8)
             .glassCard()
@@ -356,7 +321,6 @@ struct OnboardingView: View {
                             }
                             .padding(.horizontal, 18)
                             .frame(maxWidth: .infinity, minHeight: 56)
-                            .background(bloodTypeInput == type ? Color.mvAccent : nil)
                             .glassCard(selected: bloodTypeInput == type)
                         }
                         .buttonStyle(.plain)
@@ -560,6 +524,160 @@ struct OnboardingView: View {
                     .foregroundStyle(.white)
             }
         }
+    }
+}
+
+private struct BirthdayWheelPicker: UIViewRepresentable {
+    @Binding var day: Int
+    @Binding var month: Int
+    @Binding var year: Int
+    let monthSymbols: [String]
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(day: $day, month: $month, year: $year, monthSymbols: monthSymbols)
+    }
+
+    func makeUIView(context: Context) -> UIPickerView {
+        let picker = UIPickerView()
+        picker.dataSource = context.coordinator
+        picker.delegate = context.coordinator
+        picker.backgroundColor = .clear
+        picker.selectRow(max(0, day - 1), inComponent: 0, animated: false)
+        picker.selectRow(max(0, month - 1), inComponent: 1, animated: false)
+        picker.selectRow(max(0, year - 1950), inComponent: 2, animated: false)
+        return picker
+    }
+
+    func updateUIView(_ uiView: UIPickerView, context: Context) {
+        context.coordinator.day = $day
+        context.coordinator.month = $month
+        context.coordinator.year = $year
+        context.coordinator.monthSymbols = monthSymbols
+
+        let currentDayRow = max(0, min(day - 1, context.coordinator.dayCount(for: month, year: year) - 1))
+        let currentMonthRow = max(0, month - 1)
+        let currentYearRow = max(0, year - 1950)
+
+        if uiView.selectedRow(inComponent: 0) != currentDayRow {
+            uiView.selectRow(currentDayRow, inComponent: 0, animated: false)
+        }
+        if uiView.selectedRow(inComponent: 1) != currentMonthRow {
+            uiView.selectRow(currentMonthRow, inComponent: 1, animated: false)
+        }
+        if uiView.selectedRow(inComponent: 2) != currentYearRow {
+            uiView.selectRow(currentYearRow, inComponent: 2, animated: false)
+        }
+    }
+
+    final class Coordinator: NSObject, UIPickerViewDataSource, UIPickerViewDelegate {
+        var day: Binding<Int>
+        var month: Binding<Int>
+        var year: Binding<Int>
+        var monthSymbols: [String]
+
+        init(day: Binding<Int>, month: Binding<Int>, year: Binding<Int>, monthSymbols: [String]) {
+            self.day = day
+            self.month = month
+            self.year = year
+            self.monthSymbols = monthSymbols
+        }
+
+        func numberOfComponents(in pickerView: UIPickerView) -> Int { 3 }
+
+        func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+            switch component {
+            case 0:
+                return dayCount(for: month.wrappedValue, year: year.wrappedValue)
+            case 1:
+                return 12
+            case 2:
+                return (1950...Calendar.current.component(.year, from: Date())).count
+            default:
+                return 0
+            }
+        }
+
+        func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+            switch component {
+            case 0: return "\(row + 1)"
+            case 1: return monthSymbols[safe: row] ?? ""
+            case 2: return "\(1950 + row)"
+            default: return nil
+            }
+        }
+
+        func pickerView(
+            _ pickerView: UIPickerView,
+            attributedTitleForRow row: Int,
+            forComponent component: Int
+        ) -> NSAttributedString? {
+            let title = rowTitle(for: row, component: component)
+            return NSAttributedString(
+                string: title,
+                attributes: [
+                    .foregroundColor: UIColor.black,
+                    .font: UIFont.systemFont(ofSize: 20, weight: .regular)
+                ]
+            )
+        }
+
+        private func rowTitle(for row: Int, component: Int) -> String {
+            switch component {
+            case 0: return "\(row + 1)"
+            case 1: return monthSymbols[safe: row] ?? ""
+            case 2: return "\(1950 + row)"
+            default: return ""
+            }
+        }
+
+        func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+            switch component {
+            case 0:
+                day.wrappedValue = row + 1
+            case 1:
+                month.wrappedValue = row + 1
+                let validDays = dayCount(for: month.wrappedValue, year: year.wrappedValue)
+                if day.wrappedValue > validDays {
+                    day.wrappedValue = validDays
+                    pickerView.reloadComponent(0)
+                    pickerView.selectRow(validDays - 1, inComponent: 0, animated: false)
+                }
+            case 2:
+                year.wrappedValue = 1950 + row
+                let validDays = dayCount(for: month.wrappedValue, year: year.wrappedValue)
+                if day.wrappedValue > validDays {
+                    day.wrappedValue = validDays
+                    pickerView.reloadComponent(0)
+                    pickerView.selectRow(validDays - 1, inComponent: 0, animated: false)
+                }
+            default:
+                break
+            }
+            pickerView.reloadAllComponents()
+        }
+
+        func dayCount(for month: Int, year: Int) -> Int {
+            let dayRange: ClosedRange<Int>
+            switch month {
+            case 1, 3, 5, 7, 8, 10, 12:
+                dayRange = 1...31
+            case 4, 6, 9, 11:
+                dayRange = 1...30
+            case 2:
+                let isLeapYear = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+                dayRange = 1...(isLeapYear ? 29 : 28)
+            default:
+                dayRange = 1...31
+            }
+            return dayRange.count
+        }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Index) -> Element? {
+        guard indices.contains(index) else { return nil }
+        return self[index]
     }
 }
 

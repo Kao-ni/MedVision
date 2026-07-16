@@ -15,8 +15,8 @@ struct LanguageChooserView: View {
     }
 
     private let options: [Option] = [
-        Option(id: "en", badge: "EN", nativeName: "English"),
-        Option(id: "th", badge: "TH", nativeName: "ไทย")
+        Option(id: "en", badge: "🇺🇸", nativeName: "English"),
+        Option(id: "th", badge: "🇹🇭", nativeName: "ไทย")
     ]
 
     var body: some View {
@@ -59,13 +59,13 @@ struct LanguageChooserView: View {
         } label: {
             HStack(spacing: 14) {
                 Text(verbatim: option.badge)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.system(size: 37, weight: .bold))
                     .foregroundStyle(Color.mvAccent)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 54, height: 54)
                     .background(Color.white.opacity(0.55), in: Circle())
 
                 Text(verbatim: option.nativeName)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(Color.mvInk)
 
                 Spacer()
@@ -73,13 +73,13 @@ struct LanguageChooserView: View {
                 ZStack {
                     Circle()
                         .stroke(isSelected ? Color.mvAccent : Color(hex: "D8DEE4"), lineWidth: 2)
-                        .frame(width: 26, height: 26)
+                        .frame(width: 36, height: 56)
                     if isSelected {
                         Circle()
                             .fill(Color.mvAccent)
-                            .frame(width: 26, height: 26)
+                            .frame(width: 36, height: 36)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.white)
                     }
                 }

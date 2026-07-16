@@ -5,7 +5,6 @@ struct ProfileView: View {
     @AppStorage("profile_firstName") private var firstName = "First Name"
     @AppStorage("profile_lastName") private var lastName = "Last Name"
     @AppStorage("profile_gender") private var gender = "Male"
-    @AppStorage("profile_age") private var age = ""
     @AppStorage("profile_birthdayTimestamp") private var birthdayTimestamp: Double = Date().timeIntervalSince1970
     @AppStorage("profile_bloodType") private var bloodType = "O+"
     @AppStorage("profile_allergies") private var allergies = "None"
@@ -31,6 +30,13 @@ struct ProfileView: View {
         formatter.dateFormat = "MMM d"
         formatter.locale = locale
         return formatter.string(from: Date(timeIntervalSince1970: birthdayTimestamp))
+    }
+
+    private var ageDisplay: String {
+        let calendar = Calendar.current
+        let birthday = Date(timeIntervalSince1970: birthdayTimestamp)
+        let age = calendar.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+        return age > 0 ? "\(age)" : "0"
     }
 
     var body: some View {
@@ -63,7 +69,7 @@ struct ProfileView: View {
 
                             HStack(spacing: 8) {
                                 statPill(value: gender, label: "Gender", localizeValue: true)
-                                statPill(value: age, label: "Age")
+                                statPill(value: ageDisplay, label: "Age")
                                 statPill(value: birthdayDisplay, label: "Birthday")
                             }
                             .padding(.top, 8)
@@ -132,7 +138,6 @@ struct ProfileView: View {
                     firstName: $firstName,
                     lastName: $lastName,
                     gender: $gender,
-                    age: $age,
                     birthdayTimestamp: $birthdayTimestamp,
                     bloodType: $bloodType,
                     allergies: $allergies,
@@ -356,7 +361,6 @@ struct EditProfileSheet: View {
     @Binding var firstName: String
     @Binding var lastName: String
     @Binding var gender: String
-    @Binding var age: String
     @Binding var birthdayTimestamp: Double
     @Binding var bloodType: String
     @Binding var allergies: String
@@ -391,9 +395,9 @@ struct EditProfileSheet: View {
                             Text(LocalizedStringKey($0))
                         }
                     }
-                    TextField("Age", text: $age)
-                        .keyboardType(.numberPad)
                     DatePicker("Birthday", selection: birthdayBinding, displayedComponents: .date)
+                        .tint(.black)
+                        .foregroundStyle(.black)
                 }
 
                 Section("Health") {
