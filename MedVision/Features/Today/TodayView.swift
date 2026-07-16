@@ -74,7 +74,7 @@ struct TodayView: View {
                     }
                 } header: {
                     Label {
-                        Text("Upcoming") + Text(" — \(upcoming.count)")
+                        Text("Upcoming — \(upcoming.count)")
                     } icon: {
                         Image(systemName: "clock")
                     }
@@ -88,7 +88,7 @@ struct TodayView: View {
                     }
                 } header: {
                     Label {
-                        Text("Done") + Text(" — \(done.count)")
+                        Text("Done — \(done.count)")
                     } icon: {
                         Image(systemName: "checkmark.circle")
                     }
