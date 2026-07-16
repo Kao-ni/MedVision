@@ -8,7 +8,7 @@ enum DoseStatus: String, CaseIterable, Identifiable, Codable {
 
     var id: Self { self }
 
-    var displayName: String {
+    var localizationKey: String {
         switch self {
         case .pending:  return "Upcoming"
         case .complete: return "Taken"

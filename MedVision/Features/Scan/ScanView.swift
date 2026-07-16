@@ -72,7 +72,7 @@ struct ScanView: View {
                 await MainActor.run {
                     recognitionResult = nil
                     ocrErrorMessage = (error as? RecognitionError)?.errorDescription
-                        ?? "Couldn't read the packet. Fill in the details below."
+                        ?? AppLanguage.localized("Couldn't read the packet. Fill in the details below.")
                 }
             }
             await MainActor.run {

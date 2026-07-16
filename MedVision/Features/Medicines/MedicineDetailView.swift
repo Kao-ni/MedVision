@@ -6,6 +6,7 @@ struct MedicineDetailView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     @State private var showEdit = false
     @State private var showDeleteConfirm = false
@@ -37,7 +38,11 @@ struct MedicineDetailView: View {
             AddMedicineView(existing: medicine)
         }
         .confirmationDialog(
-            "Delete \(medicine.name)?",
+            AppLanguage.localized(
+                "delete_medicine_format",
+                locale: locale,
+                arguments: [medicine.name]
+            ),
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
@@ -73,7 +78,11 @@ struct MedicineDetailView: View {
             if !medicine.dosage.isEmpty {
                 LabeledContent("Dosage", value: medicine.dosage)
             }
-            LabeledContent("Form", value: medicine.form.rawValue)
+            LabeledContent {
+                Text(LocalizedStringKey(medicine.form.localizationKey))
+            } label: {
+                Text("Form")
+            }
             if !medicine.notes.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Notes")
@@ -97,7 +106,10 @@ struct MedicineDetailView: View {
                 }
                 ForEach(medicine.scheduledTimes.sorted(), id: \.self) { time in
                     Label(
-                        time.formatted(date: .omitted, time: .shortened),
+                        time.formatted(
+                            Date.FormatStyle(date: .omitted, time: .shortened)
+                                .locale(locale)
+                        ),
                         systemImage: "bell"
                     )
                 }

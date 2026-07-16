@@ -15,7 +15,12 @@ struct ContentView: View {
             if showSplash || auth.isRestoringSession {
                 SplashScreenView()
             } else if auth.isSignedIn {
-                mainTabs
+                if shouldShowOnboarding {
+                    OnboardingView()
+                        .transition(.opacity)
+                } else {
+                    mainTabs
+                }
             } else if let authViewModel {
                 AuthView(viewModel: authViewModel)
             } else {
@@ -31,6 +36,13 @@ struct ContentView: View {
             }
             try? await Task.sleep(for: .seconds(1.5))
             withAnimation { showSplash = false }
+        }
+        .onAppear {
+            #if DEBUG
+            // Keep onboarding easy to test from Xcode. This runs only once when
+            // the app launches, so Get Started can still dismiss it normally.
+            shouldShowOnboarding = true
+            #endif
         }
     }
 
@@ -70,13 +82,6 @@ struct ContentView: View {
         }
         .task {
             await NotificationService.shared.requestPermission()
-        }
-        .sheet(isPresented: Binding(
-            get: { shouldShowOnboarding },
-            set: { shouldShowOnboarding = $0 }
-        )) {
-            OnboardingView()
-                .interactiveDismissDisabled(true)
         }
     }
 }

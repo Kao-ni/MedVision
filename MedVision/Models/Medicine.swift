@@ -10,6 +10,8 @@ enum MedicineForm: String, CaseIterable, Codable {
     case inhaler   = "Inhaler"
     case other     = "Other"
 
+    var localizationKey: String { rawValue }
+
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         // "Pill" was the old raw value before tablet/capsule split

@@ -5,6 +5,7 @@ struct TodayView: View {
     @Query(sort: \DoseEvent.scheduledTime) private var allEvents: [DoseEvent]
     @Query private var allMedicines: [Medicine]
     @Environment(\.modelContext) private var context
+    @Environment(\.locale) private var locale
 
     private var todayEvents: [DoseEvent] {
         allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
@@ -34,7 +35,11 @@ struct TodayView: View {
                     VStack(spacing: 0) {
                         Text("Today")
                             .font(.headline)
-                        Text(Date.now.formatted(date: .abbreviated, time: .omitted))
+                        Text(
+                            Date.now,
+                            format: Date.FormatStyle(date: .abbreviated, time: .omitted)
+                                .locale(locale)
+                        )
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -68,7 +73,11 @@ struct TodayView: View {
                         TodayDoseRow(event: event, isOverdue: false)
                     }
                 } header: {
-                    Label("Upcoming — \(upcoming.count)", systemImage: "clock")
+                    Label {
+                        Text("Upcoming") + Text(" — \(upcoming.count)")
+                    } icon: {
+                        Image(systemName: "clock")
+                    }
                 }
             }
 
@@ -78,7 +87,11 @@ struct TodayView: View {
                         TodayDoseRow(event: event, isOverdue: false)
                     }
                 } header: {
-                    Label("Done — \(done.count)", systemImage: "checkmark.circle")
+                    Label {
+                        Text("Done") + Text(" — \(done.count)")
+                    } icon: {
+                        Image(systemName: "checkmark.circle")
+                    }
                 }
             }
         }
@@ -125,6 +138,7 @@ private struct ProgressCard: View {
     let taken: Int
     let total: Int
     let progress: Double
+    @Environment(\.locale) private var locale
 
     private var allDone: Bool { taken == total }
 
@@ -132,9 +146,25 @@ private struct ProgressCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(allDone ? "All done!" : "\(taken) of \(total) taken today")
+                    Text(
+                        allDone
+                            ? AppLanguage.localized("All done!", locale: locale)
+                            : AppLanguage.localized(
+                                "progress_taken_format",
+                                locale: locale,
+                                arguments: [taken, total]
+                            )
+                    )
                         .font(.headline)
-                    Text(allDone ? "Great job keeping up with your medicines." : "\(total - taken) dose\(total - taken == 1 ? "" : "s") remaining")
+                    Text(
+                        allDone
+                            ? AppLanguage.localized("Great job keeping up with your medicines.", locale: locale)
+                            : AppLanguage.localized(
+                                "progress_remaining_format",
+                                locale: locale,
+                                arguments: [total - taken]
+                            )
+                    )
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -170,15 +200,23 @@ private struct ProgressCard: View {
 struct TodayDoseRow: View {
     let event: DoseEvent
     let isOverdue: Bool
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(event.medicine?.name ?? "Unknown")
-                            .font(.title3)
-                            .fontWeight(.semibold)
+                        Group {
+                            if let medicineName = event.medicine?.name {
+                                Text(verbatim: medicineName)
+                            } else {
+                                Text("Unknown")
+                            }
+                        }
+                        .font(.title3)
+                        .fontWeight(.semibold)
+
                         if isOverdue {
                             Text("Overdue")
                                 .font(.caption)
@@ -197,7 +235,11 @@ struct TodayDoseRow: View {
                     }
                 }
                 Spacer()
-                Text(event.scheduledTime.formatted(date: .omitted, time: .shortened))
+                Text(
+                    event.scheduledTime,
+                    format: Date.FormatStyle(date: .omitted, time: .shortened)
+                        .locale(locale)
+                )
                     .font(.headline)
                     .monospacedDigit()
                     .foregroundStyle(isOverdue ? .red : .secondary)
@@ -233,11 +275,26 @@ struct TodayDoseRow: View {
                 }
             } else {
                 HStack {
-                    Label(event.status.displayName, systemImage: event.status.systemImage)
+                    Label {
+                        Text(LocalizedStringKey(event.status.localizationKey))
+                    } icon: {
+                        Image(systemName: event.status.systemImage)
+                    }
                         .font(.subheadline)
                         .foregroundStyle(event.status.color)
                     if let takenTime = event.takenTime, event.status == .complete {
-                        Text("at \(takenTime.formatted(date: .omitted, time: .shortened))")
+                        Text(
+                            AppLanguage.localized(
+                                "taken_at_format",
+                                locale: locale,
+                                arguments: [
+                                    takenTime.formatted(
+                                        Date.FormatStyle(date: .omitted, time: .shortened)
+                                            .locale(locale)
+                                    )
+                                ]
+                            )
+                        )
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

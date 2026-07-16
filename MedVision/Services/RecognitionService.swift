@@ -23,21 +23,24 @@ enum RecognitionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return "Add your Typhoon API key in PrototypeOCRConfig.swift first."
+            return AppLanguage.localized("Add your Typhoon API key in PrototypeOCRConfig.swift first.")
         case .invalidImageData:
-            return "Couldn't prepare the photo for OCR."
+            return AppLanguage.localized("Couldn't prepare the photo for OCR.")
         case .networkError(let e):
-            return "Network error: \(e.localizedDescription)"
+            return AppLanguage.localized(
+                "network_error_format",
+                arguments: [e.localizedDescription]
+            )
         case .badResponse:
-            return "The OCR service returned an unreadable response."
+            return AppLanguage.localized("The OCR service returned an unreadable response.")
         case .serviceError(let message):
             return message
         case .noTextFound:
-            return "No text could be read from the photo."
+            return AppLanguage.localized("No text could be read from the photo.")
         case .notMedicine:
-            return "This doesn't look like a medicine label. You can enter it manually instead."
+            return AppLanguage.localized("This doesn't look like a medicine label. You can enter it manually instead.")
         case .parsingFailed:
-            return "Couldn't extract medicine details from the photo."
+            return AppLanguage.localized("Couldn't extract medicine details from the photo.")
         }
     }
 }
@@ -114,7 +117,12 @@ struct RecognitionService {
         }
         guard (200...299).contains(http.statusCode) else {
             let message = extractErrorMessage(from: data)
-            throw RecognitionError.serviceError(message ?? "OCR request failed with status \(http.statusCode).")
+            throw RecognitionError.serviceError(
+                message ?? AppLanguage.localized(
+                    "ocr_status_error_format",
+                    arguments: [http.statusCode]
+                )
+            )
         }
         guard let text = extractMessageContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else {
@@ -284,7 +292,12 @@ struct RecognitionService {
         }
         guard (200...299).contains(http.statusCode) else {
             let message = extractErrorMessage(from: data)
-            throw RecognitionError.serviceError(message ?? "Parse request failed with status \(http.statusCode).")
+            throw RecognitionError.serviceError(
+                message ?? AppLanguage.localized(
+                    "parse_status_error_format",
+                    arguments: [http.statusCode]
+                )
+            )
         }
         guard let text = extractMessageContent(from: data)?.trimmingCharacters(in: .whitespacesAndNewlines),
               !text.isEmpty else {

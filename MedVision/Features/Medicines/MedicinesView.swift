@@ -47,6 +47,7 @@ struct MedicinesView: View {
 
 private struct MedicineRow: View {
     let medicine: Medicine
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -59,10 +60,17 @@ private struct MedicineRow: View {
                 if !medicine.dosage.isEmpty {
                     Text("·")
                 }
-                Text(medicine.form.rawValue)
+                Text(LocalizedStringKey(medicine.form.localizationKey))
                 if !medicine.scheduledTimes.isEmpty {
                     Text("·")
-                    Label("\(medicine.scheduledTimes.count)×/day", systemImage: "bell")
+                    Label(
+                        AppLanguage.localized(
+                            "doses_per_day_format",
+                            locale: locale,
+                            arguments: [medicine.scheduledTimes.count]
+                        ),
+                        systemImage: "bell"
+                    )
                         .font(.caption)
                         .foregroundStyle(.blue)
                 }

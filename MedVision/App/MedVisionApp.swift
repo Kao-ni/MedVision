@@ -5,11 +5,16 @@ import SwiftData
 struct MedVisionApp: App {
     private static let container: ModelContainer = makeContainer()
     @State private var authService = AuthService()
+    @AppStorage(AppLanguage.storageKey) private var displayLanguage = "en"
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(authService)
+                .environment(
+                    \.locale,
+                    Locale(identifier: AppLanguage.code(for: displayLanguage))
+                )
                 .onOpenURL { url in
                     authService.handleOpenURL(url)
                 }

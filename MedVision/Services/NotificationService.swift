@@ -27,8 +27,11 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let content = UNMutableNotificationContent()
         content.title = medicine.name
         content.body = medicine.dosage.isEmpty
-            ? "Time to take your medicine."
-            : "Time to take \(medicine.dosage)."
+            ? AppLanguage.localized("Time to take your medicine.")
+            : AppLanguage.localized(
+                "time_to_take_dosage_format",
+                arguments: [medicine.dosage]
+            )
         if !medicine.frequencyNote.isEmpty {
             content.subtitle = medicine.frequencyNote
         }

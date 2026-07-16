@@ -3,6 +3,7 @@ import SwiftUI
 struct DoseEventRow: View {
     let event: DoseEvent
     var showMedicineName: Bool = true
+    @Environment(\.locale) private var locale
 
     private var color: Color { event.status.color }
 
@@ -18,14 +19,18 @@ struct DoseEventRow: View {
                 if showMedicineName, let name = event.medicine?.name {
                     Text(name).font(.headline)
                 }
-                Text(event.scheduledTime.formatted(date: .abbreviated, time: .shortened))
+                Text(
+                    event.scheduledTime,
+                    format: Date.FormatStyle(date: .abbreviated, time: .shortened)
+                        .locale(locale)
+                )
                     .font(showMedicineName ? .subheadline : .body)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            Text(event.status.displayName)
+            Text(LocalizedStringKey(event.status.localizationKey))
                 .font(.headline)
                 .foregroundStyle(color)
         }
@@ -36,7 +41,15 @@ struct DoseEventRow: View {
 
     private var accessibilityText: String {
         let prefix = showMedicineName ? (event.medicine.map { "\($0.name), " } ?? "") : ""
-        let time = event.scheduledTime.formatted(date: .abbreviated, time: .shortened)
-        return "\(prefix)\(event.status.displayName), scheduled \(time)"
+        let time = event.scheduledTime.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .shortened)
+                .locale(locale)
+        )
+        let status = AppLanguage.localized(event.status.localizationKey, locale: locale)
+        return AppLanguage.localized(
+            "scheduled_accessibility_format",
+            locale: locale,
+            arguments: [prefix + status + ", ", time]
+        )
     }
 }

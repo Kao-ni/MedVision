@@ -3,6 +3,7 @@ import SwiftData
 
 struct HistoryView: View {
     @Query(sort: \DoseEvent.scheduledTime, order: .reverse) private var events: [DoseEvent]
+    @Environment(\.locale) private var locale
 
     @State private var filter: DoseStatus? = nil
 
@@ -45,10 +46,16 @@ struct HistoryView: View {
             }
 
             ForEach(sections, id: \.day) { section in
-                Section(section.day.formatted(date: .complete, time: .omitted)) {
+                Section {
                     ForEach(section.events) { event in
                         DoseEventRow(event: event)
                     }
+                } header: {
+                    Text(
+                        section.day,
+                        format: Date.FormatStyle(date: .complete, time: .omitted)
+                            .locale(locale)
+                    )
                 }
             }
         }
@@ -59,7 +66,8 @@ struct HistoryView: View {
         Picker("Filter", selection: $filter) {
             Text("All").tag(DoseStatus?.none)
             ForEach(DoseStatus.allCases.filter { $0 != .pending }) { status in
-                Text(status.displayName).tag(DoseStatus?.some(status))
+                Text(LocalizedStringKey(status.localizationKey))
+                    .tag(DoseStatus?.some(status))
             }
         }
         .pickerStyle(.segmented)
