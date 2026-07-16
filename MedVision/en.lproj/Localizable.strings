@@ -207,3 +207,42 @@
 /* Meal-linked reminders */
 "Meal times" = "Meal times";
 "Times suggested from your meal schedule." = "Times suggested from your meal schedule.";
+
+/* New onboarding screens */
+"Choose your language" = "Choose your language";
+"When's your birthday?" = "When's your birthday?";
+"Setting things up…" = "Setting things up…";
+"Select all that apply — you can update this anytime." = "Select all that apply — you can update this anytime.";
+"No known allergies" = "No known allergies";
+"Type an allergy" = "Type an allergy";
+"Search conditions" = "Search conditions";
+"Any existing health conditions?" = "Any existing health conditions?";
+"This helps us flag potential interactions." = "This helps us flag potential interactions.";
+"No known conditions" = "No known conditions";
+
+/* Allergy options */
+"Penicillin" = "Penicillin";
+"Peanuts" = "Peanuts";
+"Tree Nuts" = "Tree Nuts";
+"Shellfish" = "Shellfish";
+"Dairy" = "Dairy";
+"Gluten" = "Gluten";
+"Soy" = "Soy";
+"Latex" = "Latex";
+"Pollen" = "Pollen";
+"Dust" = "Dust";
+"Pet Dander" = "Pet Dander";
+"Bee Stings" = "Bee Stings";
+"Sulfa Drugs" = "Sulfa Drugs";
+"Ibuprofen" = "Ibuprofen";
+
+/* Health condition options */
+"Diabetes" = "Diabetes";
+"Hypertension" = "Hypertension";
+"Asthma" = "Asthma";
+"Thyroid disorder" = "Thyroid disorder";
+"High cholesterol" = "High cholesterol";
+"Heart disease" = "Heart disease";
+"Kidney disease" = "Kidney disease";
+"Depression or anxiety" = "Depression or anxiety";
+"Arthritis" = "Arthritis";

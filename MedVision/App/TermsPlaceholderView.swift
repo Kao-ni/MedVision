@@ -8,28 +8,25 @@ struct TermsPlaceholderView: View {
             Spacer()
 
             Text("Terms of Service")
-                .font(.largeTitle.bold())
+                .font(.system(size: 32, weight: .bold))
+                .foregroundStyle(Color.mvInk)
                 .multilineTextAlignment(.center)
 
             Text("Terms and conditions will be added here later.")
                 .font(.title3)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.mvSubtle)
                 .multilineTextAlignment(.center)
 
             Spacer()
 
             Button("Continue", action: onContinue)
-                .font(.title3.bold())
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-                .background(Color.accentColor)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .buttonStyle(MVPrimaryButtonStyle())
         }
-        .padding(.horizontal, 32)
+        .padding(.horizontal, 24)
         .padding(.top, 32)
-        .padding(.bottom, 52)
-        .background(Color(.systemBackground))
+        .padding(.bottom, 44)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .mvScreenBackground()
     }
 }
 

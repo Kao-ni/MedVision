@@ -207,3 +207,42 @@
 /* Meal-linked reminders */
 "Meal times" = "เวลารับประทานอาหาร";
 "Times suggested from your meal schedule." = "เวลาถูกแนะนำจากตารางมื้ออาหารของคุณ";
+
+/* New onboarding screens */
+"Choose your language" = "เลือกภาษาของคุณ";
+"When's your birthday?" = "วันเกิดของคุณคือวันไหน?";
+"Setting things up…" = "กำลังปรับตั้ง…";
+"Select all that apply — you can update this anytime." = "เลือกทั้งหมดที่ใช้ได้ — คุณสามารถอัปเดตได้ทุกเมื่อ";
+"No known allergies" = "ไม่มีอาการแพ้ที่รู้จัก";
+"Type an allergy" = "พิมพ์ชื่ออาการแพ้";
+"Search conditions" = "ค้นหาสภาวะทางการแพทย์";
+"Any existing health conditions?" = "มีสภาวะทางสุขภาพที่มีอยู่หรือไม่?";
+"This helps us flag potential interactions." = "สิ่งนี้ช่วยเราระบุปฏิสัมพันธ์ที่อาจเกิดขึ้น";
+"No known conditions" = "ไม่มีสภาวะที่รู้จัก";
+
+/* Allergy options */
+"Penicillin" = "เพนิซิลลิน";
+"Peanuts" = "ถั่วลิสง";
+"Tree Nuts" = "ถั่วจากต้นไม้";
+"Shellfish" = "สัตว์ทะเลมีเปลือก";
+"Dairy" = "ผลิตภัณฑ์นมเนย";
+"Gluten" = "กลูเตน";
+"Soy" = "ถั่วเหลือง";
+"Latex" = "ยาง";
+"Pollen" = "เกสรดอก";
+"Dust" = "ฝุ่น";
+"Pet Dander" = "ขนสัตว์เลี้ยง";
+"Bee Stings" = "การเจาะของผึ้ง";
+"Sulfa Drugs" = "ยาซัลฟา";
+"Ibuprofen" = "ไอบูโปรเฟน";
+
+/* Health condition options */
+"Diabetes" = "โรคเบาหวาน";
+"Hypertension" = "ความดันโลหิตสูง";
+"Asthma" = "โรคหอบหืด";
+"Thyroid disorder" = "ความผิดปกติของต่อมไทรอยด์";
+"High cholesterol" = "ระดับคอเลสเตอรอลสูง";
+"Heart disease" = "โรคหัวใจ";
+"Kidney disease" = "โรคไต";
+"Depression or anxiety" = "ภาวะซึมเศร้าหรือวิตกกังวล";
+"Arthritis" = "โรคข้ออักษณ์";
