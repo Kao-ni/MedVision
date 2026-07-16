@@ -223,8 +223,8 @@ private enum ScannerMode: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .label: return "Label"
-        case .barcode: return "Barcode"
+        case .label: return AppLanguage.localized("Label")
+        case .barcode: return AppLanguage.localized("Barcode")
         }
     }
 
@@ -237,22 +237,22 @@ private enum ScannerMode: String, CaseIterable {
 
     var defaultTip: String {
         switch self {
-        case .label: return "Centre the label inside the frame"
-        case .barcode: return "Centre the barcode inside the frame"
+        case .label: return AppLanguage.localized("Centre the label inside the frame")
+        case .barcode: return AppLanguage.localized("Centre the barcode inside the frame")
         }
     }
 
     var scanText: String {
         switch self {
-        case .label: return "Scanning label..."
-        case .barcode: return "Reading barcode..."
+        case .label: return AppLanguage.localized("Scanning label...")
+        case .barcode: return AppLanguage.localized("Reading barcode...")
         }
     }
 
     var successText: String {
         switch self {
-        case .label: return "Label captured!"
-        case .barcode: return "Barcode found!"
+        case .label: return AppLanguage.localized("Label captured!")
+        case .barcode: return AppLanguage.localized("Barcode found!")
         }
     }
 }
@@ -433,19 +433,19 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         case .default:
             return mode.defaultTip
         case .angle:
-            return "Tilt the camera - hold it flat above the label"
+            return AppLanguage.localized("Tilt the camera - hold it flat above the label")
         case .lighting:
-            return "Move to better light or turn on flash"
+            return AppLanguage.localized("Move to better light or turn on flash")
         case .distance:
-            return "Move closer - about 20 cm works best"
+            return AppLanguage.localized("Move closer - about 20 cm works best")
         case .blur:
-            return "Hold still - camera is focusing..."
+            return AppLanguage.localized("Hold still - camera is focusing...")
         case .permissionDenied:
-            return "Camera access is blocked. Enable it in Settings to scan."
+            return AppLanguage.localized("Camera access is blocked. Enable it in Settings to scan.")
         case .cameraUnavailable:
-            return "No camera is available on this device."
+            return AppLanguage.localized("No camera is available on this device.")
         case .ready:
-            return "Looking good - tap the shutter to scan"
+            return AppLanguage.localized("Looking good - tap the shutter to scan")
         }
     }
 
@@ -910,14 +910,14 @@ private struct ModeToggle: View {
                     modeSegment(
                         mode: .label,
                         icon: "doc.text",
-                        title: "Label",
+                        title: ScannerMode.label.title,
                         width: segmentWidth
                     )
 
                     modeSegment(
                         mode: .barcode,
                         icon: "barcode",
-                        title: "Barcode",
+                        title: ScannerMode.barcode.title,
                         width: segmentWidth
                     )
                 }

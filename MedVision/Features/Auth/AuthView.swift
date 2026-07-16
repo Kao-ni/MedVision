@@ -20,30 +20,38 @@ struct AuthView: View {
                     }
 
                     VStack(spacing: 4) {
-                        Text(viewModel.mode == .signIn
-                             ? "Welcome to MedVision"
-                             : "Create Your Account")
-                            .font(.title.bold())
-                            .multilineTextAlignment(.center)
-                            .accessibilityAddTraits(.isHeader)
+                        Text(
+                            LocalizedStringKey(
+                                viewModel.mode == .signIn
+                                    ? "Welcome to MedVision"
+                                    : "Create Your Account"
+                            )
+                        )
+                        .font(.title.bold())
+                        .multilineTextAlignment(.center)
+                        .accessibilityAddTraits(.isHeader)
 
-                        Text(viewModel.mode == .signIn
-                             ? "Sign in to continue managing your medicines."
-                             : "Create an account to keep your medicine information together.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                        Text(
+                            LocalizedStringKey(
+                                viewModel.mode == .signIn
+                                    ? "Sign in to continue managing your medicines."
+                                    : "Create an account to keep your medicine information together."
+                            )
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                     }
                 }
                 .padding(.top, 8)
 
                 Picker("Mode", selection: $viewModel.mode) {
                     ForEach(AuthViewModel.Mode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
+                        Text(LocalizedStringKey(mode.titleKey)).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
-                .accessibilityLabel("Sign in or create account")
+                .accessibilityLabel(Text("Sign in or create account"))
                 .disabled(viewModel.isLoading)
                 .padding(4)
                 .background(Color.secondary.opacity(0.08))
@@ -132,7 +140,7 @@ struct AuthView: View {
                     .frame(height: 50)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .disabled(viewModel.isLoading || !auth.isConfigured)
-                    .accessibilityLabel("Sign in with Apple")
+                    .accessibilityLabel(Text("Sign in with Apple"))
 
                     Button {
                         Task { await viewModel.signInWithGoogle() }
@@ -156,7 +164,7 @@ struct AuthView: View {
                     .buttonStyle(.plain)
                     .disabled(viewModel.isLoading || !auth.isConfigured)
                     .opacity(viewModel.isLoading || !auth.isConfigured ? 0.5 : 1)
-                    .accessibilityLabel("Continue with Google")
+                    .accessibilityLabel(Text("Continue with Google"))
                 }
 
                 Button {
@@ -172,7 +180,7 @@ struct AuthView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.isLoading)
-                .accessibilityLabel("Continue as guest without signing in")
+                .accessibilityLabel(Text("Continue as guest without signing in"))
 
                 Text("You’ll stay signed in on this phone until you sign out.")
                     .font(.caption)
@@ -189,7 +197,7 @@ struct AuthView: View {
     }
 
     private func authField(
-        title: String,
+        title: LocalizedStringKey,
         text: Binding<String>,
         contentType: UITextContentType?,
         keyboard: UIKeyboardType,
@@ -218,7 +226,7 @@ struct AuthView: View {
                     .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .accessibilityLabel(title)
+            .accessibilityLabel(Text(title))
         }
     }
 

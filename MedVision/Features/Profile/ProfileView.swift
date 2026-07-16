@@ -12,6 +12,7 @@ struct ProfileView: View {
     @AppStorage("profile_conditions") private var conditions = "None"
     @AppStorage("profile_medications") private var medications = "None"
     @AppStorage("profile_phone") private var phone = ""
+    @AppStorage(AppLanguage.storageKey) private var displayLanguage = "en"
     @Environment(\.locale) private var locale
 
     @State private var showEditSheet = false
@@ -76,6 +77,8 @@ struct ProfileView: View {
                         ("pills.fill", Color.purple, "Medications", medications),
                     ])
 
+                    languageCard
+
                     infoCard(title: "Account", items: [
                         ("envelope.fill", Color.orange, "Email", accountEmail),
                         ("phone.fill", Color.green, "Phone", phone.isEmpty ? "—" : phone),
@@ -107,7 +110,7 @@ struct ProfileView: View {
                     .tint(.red)
                     .disabled(isSigningOut)
                     .padding(.horizontal, 20)
-                    .accessibilityLabel("Sign Out")
+                    .accessibilityLabel(Text("Sign Out"))
                 }
                 .padding(.bottom, 32)
             }
@@ -136,6 +139,42 @@ struct ProfileView: View {
             }
             .onAppear {
                 applyAuthNameIfNeeded()
+                if displayLanguage.isEmpty {
+                    displayLanguage = "en"
+                }
+            }
+        }
+    }
+
+    private var languageCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Language")
+                .font(.footnote)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
+
+            VStack(alignment: .leading, spacing: 14) {
+                Text("App language")
+                    .font(.body)
+                    .fontWeight(.medium)
+
+                Picker("Language", selection: $displayLanguage) {
+                    Text("English").tag("en")
+                    Text(verbatim: "ไทย").tag("th")
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel(Text("App language"))
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 20)
+            .onChange(of: displayLanguage) { _, newValue in
+                displayLanguage = AppLanguage.code(for: newValue)
             }
         }
     }
@@ -143,9 +182,9 @@ struct ProfileView: View {
     private var displayFirstName: String {
         if firstName != "First Name" { return firstName }
         if let full = auth.userDisplayName {
-            return full.split(separator: " ").first.map(String.init) ?? firstName
+            return full.split(separator: " ").first.map(String.init) ?? AppLanguage.localized("First Name")
         }
-        return firstName
+        return AppLanguage.localized("First Name")
     }
 
     private var displayLastName: String {
@@ -156,7 +195,7 @@ struct ProfileView: View {
                 return parts.dropFirst().joined(separator: " ")
             }
         }
-        return lastName
+        return AppLanguage.localized("Last Name")
     }
 
     private func applyAuthNameIfNeeded() {
@@ -220,6 +259,8 @@ struct ProfileView: View {
             VStack(spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     let (icon, color, label, value) = item
+                    let showsLocalizedValue = value == "None"
+                        || ["Male", "Female", "Non-binary", "Prefer not to say", "Unknown"].contains(value)
 
                     if index > 0 {
                         Divider().padding(.leading, 56)
@@ -235,8 +276,14 @@ struct ProfileView: View {
 
                         Text(LocalizedStringKey(label))
                         Spacer()
-                        Text(LocalizedStringKey(value))
-                            .foregroundStyle(.secondary)
+                        Group {
+                            if showsLocalizedValue {
+                                Text(LocalizedStringKey(value))
+                            } else {
+                                Text(verbatim: value)
+                            }
+                        }
+                        .foregroundStyle(.secondary)
                         Image(systemName: "chevron.right")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
