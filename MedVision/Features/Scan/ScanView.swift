@@ -81,7 +81,7 @@ struct ScanView: View {
                 await MainActor.run {
                     recognitionResult = nil
                     ocrErrorMessage = (error as? RecognitionError)?.errorDescription
-                        ?? AppLanguage.localized("Couldn't read the packet. Fill in the details below.")
+                        ?? NSLocalizedString("Couldn't read the packet. Fill in the details below.", comment: "")
                 }
             }
             await MainActor.run {
@@ -139,16 +139,37 @@ struct ScanView: View {
             }
         }
     }
+
+    private func decodeBarcode(from image: UIImage) async throws -> String? {
+        guard let cgImage = image.cgImage else { return nil }
+        return try await withCheckedThrowingContinuation { continuation in
+            let request = VNDetectBarcodesRequest { request, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                let payload = (request.results as? [VNBarcodeObservation])?.first?.payloadStringValue
+                continuation.resume(returning: payload)
+            }
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            do {
+                try handler.perform([request])
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
 }
 
 private struct ScannerFullScreenView: View {
     let isBusy: Bool
+    @Binding var selectedMode: ScannerMode
     let onClose: () -> Void
     let onCapture: (UIImage) -> Void
+    let onBarcodeCapture: (String) -> Void
     let onGalleryTap: () -> Void
 
     @StateObject private var camera = ScannerCameraController()
-    @State private var selectedMode: ScannerMode = .label
 
     var body: some View {
         GeometryReader { proxy in
@@ -184,6 +205,7 @@ private struct ScannerFullScreenView: View {
             }
             .onAppear {
                 camera.onCapture = onCapture
+                camera.onBarcodeCapture = onBarcodeCapture
                 camera.start()
             }
             .onDisappear {
@@ -338,6 +360,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
     @Published var captureFeedback: CaptureFeedback?
 
     var onCapture: ((UIImage) -> Void)?
+    var onBarcodeCapture: ((String) -> Void)?
 
     private let sessionQueue = DispatchQueue(label: "medvision.scanner.session")
     private let analysisQueue = DispatchQueue(label: "medvision.scanner.analysis", qos: .userInitiated)
@@ -758,9 +781,12 @@ private final class ScannerPhotoDelegate: NSObject, AVCapturePhotoCaptureDelegat
 
 extension ScannerCameraController: AVCaptureMetadataOutputObjectsDelegate {
     func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
-        guard currentMode == .barcode, !metadataObjects.isEmpty else { return }
+        guard currentMode == .barcode else { return }
+        guard let readable = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              let value = readable.stringValue, !value.isEmpty else { return }
         DispatchQueue.main.async {
             self.tipState = .ready
+            self.onBarcodeCapture?(value)
         }
     }
 }
