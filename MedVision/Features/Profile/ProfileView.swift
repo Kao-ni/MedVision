@@ -13,6 +13,9 @@ struct ProfileView: View {
     @AppStorage("profile_medications") private var medications = "None"
     @AppStorage("profile_phone") private var phone = ""
     @AppStorage(AppLanguage.storageKey) private var displayLanguage = "en"
+    @AppStorage(UserMealTimes.breakfastKey) private var breakfastSeconds = UserMealTimes.defaultBreakfast
+    @AppStorage(UserMealTimes.lunchKey) private var lunchSeconds = UserMealTimes.defaultLunch
+    @AppStorage(UserMealTimes.dinnerKey) private var dinnerSeconds = UserMealTimes.defaultDinner
     @Environment(\.locale) private var locale
 
     @State private var showEditSheet = false
@@ -78,6 +81,8 @@ struct ProfileView: View {
                     ])
 
                     languageCard
+
+                    mealTimesCard
 
                     infoCard(title: "Account", items: [
                         ("envelope.fill", Color.orange, "Email", accountEmail),
@@ -177,6 +182,54 @@ struct ProfileView: View {
                 displayLanguage = AppLanguage.code(for: newValue)
             }
         }
+    }
+
+    private var mealTimesCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Meal times")
+                .font(.footnote)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
+
+            VStack(spacing: 16) {
+                mealTimeRow(title: "Breakfast", seconds: $breakfastSeconds)
+                mealTimeRow(title: "Lunch", seconds: $lunchSeconds)
+                mealTimeRow(title: "Dinner", seconds: $dinnerSeconds)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private func mealTimeRow(title: LocalizedStringKey, seconds: Binding<Int>) -> some View {
+        DatePicker(
+            title,
+            selection: Binding(
+                get: { date(fromSeconds: seconds.wrappedValue) },
+                set: { seconds.wrappedValue = secondsFromMidnight(of: $0) }
+            ),
+            displayedComponents: .hourAndMinute
+        )
+        .font(.title3)
+        .accessibilityLabel(Text(title))
+    }
+
+    private func date(fromSeconds seconds: Int) -> Date {
+        var comps = DateComponents()
+        comps.hour = seconds / 3600
+        comps.minute = (seconds % 3600) / 60
+        return Calendar.current.date(from: comps) ?? Date()
+    }
+
+    private func secondsFromMidnight(of date: Date) -> Int {
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return ((comps.hour ?? 0) * 3600) + ((comps.minute ?? 0) * 60)
     }
 
     private var displayFirstName: String {
