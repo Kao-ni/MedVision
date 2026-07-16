@@ -5,6 +5,8 @@ struct ContentView: View {
     @Environment(AuthService.self) private var auth
     @State private var showSplash = true
     @State private var authViewModel: AuthViewModel?
+    @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
+    @AppStorage("hasChosenLanguage") private var hasChosenLanguage = false
     @AppStorage("hasCompletedTermsPlaceholder") private var hasCompletedTermsPlaceholder = false
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
     @State private var selectedTab = 0
@@ -15,6 +17,16 @@ struct ContentView: View {
         ZStack {
             if showSplash || auth.isRestoringSession {
                 SplashScreenView()
+            } else if !hasSeenWelcome {
+                WelcomeView {
+                    withAnimation { hasSeenWelcome = true }
+                }
+                .transition(.opacity)
+            } else if !hasChosenLanguage {
+                LanguageChooserView {
+                    withAnimation { hasChosenLanguage = true }
+                }
+                .transition(.opacity)
             } else if auth.isSignedIn {
                 if !hasCompletedTermsPlaceholder {
                     TermsPlaceholderView {
@@ -46,7 +58,9 @@ struct ContentView: View {
         .onAppear {
             #if DEBUG
             // Keep the pre-app flow easy to test from Xcode. This runs only
-            // once at launch, so both Continue and Get Started still work.
+            // once at launch, so the full welcome → onboarding flow re-shows.
+            hasSeenWelcome = false
+            hasChosenLanguage = false
             hasCompletedTermsPlaceholder = false
             shouldShowOnboarding = true
             #endif

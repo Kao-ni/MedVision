@@ -11,12 +11,12 @@ struct AuthView: View {
                 VStack(spacing: 10) {
                     ZStack {
                         Circle()
-                            .fill(Color.accentColor.opacity(0.12))
+                            .fill(Color.white.opacity(0.55))
                             .frame(width: 92, height: 92)
 
                         Image(systemName: "pills.fill")
                             .font(.system(size: 40, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Color.mvAccent)
                     }
 
                     VStack(spacing: 4) {
@@ -28,6 +28,7 @@ struct AuthView: View {
                             )
                         )
                         .font(.title.bold())
+                        .foregroundStyle(Color.mvInk)
                         .multilineTextAlignment(.center)
                         .accessibilityAddTraits(.isHeader)
 
@@ -39,7 +40,7 @@ struct AuthView: View {
                             )
                         )
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.mvSubtle)
                         .multilineTextAlignment(.center)
                     }
                 }
@@ -191,7 +192,7 @@ struct AuthView: View {
             }
             .padding(.horizontal, 24)
         }
-        .background(Color(.systemBackground))
+        .mvScreenBackground()
         .scrollDismissesKeyboard(.interactively)
         .scrollIndicators(.hidden)
     }
@@ -206,6 +207,7 @@ struct AuthView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.mvAccent)
             Group {
                 if isSecure {
                     SecureField(title, text: text)
@@ -219,11 +221,11 @@ struct AuthView: View {
             .textContentType(contentType)
             .font(.body)
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color.secondary.opacity(0.08))
+            .padding(.vertical, 14)
+            .background(Color.white.opacity(0.85))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    .stroke(Color.mvBorder, lineWidth: 1.5)
             }
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .accessibilityLabel(Text(title))
