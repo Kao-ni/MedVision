@@ -10,23 +10,17 @@ struct ContentView: View {
     @State private var showScanCamera = false
     @State private var previousTab = 0
 
-    private var canShowOnboarding: Bool {
-        #if DEBUG
-        true
-        #else
-        auth.isSignedIn
-        #endif
-    }
-
     var body: some View {
         ZStack {
             if showSplash || auth.isRestoringSession {
                 SplashScreenView()
-            } else if shouldShowOnboarding && canShowOnboarding {
-                OnboardingView()
-                    .transition(.opacity)
             } else if auth.isSignedIn {
-                mainTabs
+                if shouldShowOnboarding {
+                    OnboardingView()
+                        .transition(.opacity)
+                } else {
+                    mainTabs
+                }
             } else if let authViewModel {
                 AuthView(viewModel: authViewModel)
             } else {
