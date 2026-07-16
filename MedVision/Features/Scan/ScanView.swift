@@ -9,9 +9,11 @@ struct ScanView: View {
     let onClose: () -> Void
 
     @State private var isRecognizing = false
+    @State private var selectedMode: ScannerMode = .label
     @State private var recognitionResult: RecognizedMedicine?
     @State private var showAddMedicine = false
     @State private var ocrErrorMessage: String?
+    @State private var scannedBarcode: String?
     @State private var capturedPhotoData: Data?
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showPhotoPicker = false
@@ -21,8 +23,10 @@ struct ScanView: View {
             if showCamera {
                 ScannerFullScreenView(
                     isBusy: isRecognizing,
+                    selectedMode: $selectedMode,
                     onClose: onClose,
                     onCapture: handleCapture,
+                    onBarcodeCapture: handleBarcodeCapture,
                     onGalleryTap: { showPhotoPicker = true }
                 )
             } else {
@@ -39,7 +43,11 @@ struct ScanView: View {
             guard let item = photoPickerItem else { return }
             if let data = try? await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
-                handleCapture(image)
+                if selectedMode == .barcode {
+                    handleBarcodeImage(image)
+                } else {
+                    handleCapture(image)
+                }
             }
             await MainActor.run {
                 photoPickerItem = nil
@@ -60,6 +68,7 @@ struct ScanView: View {
                 isRecognizing = true
                 capturedPhotoData = image.jpegData(compressionQuality: 0.8)
                 ocrErrorMessage = nil
+                scannedBarcode = nil
             }
 
             do {
@@ -78,6 +87,55 @@ struct ScanView: View {
             await MainActor.run {
                 isRecognizing = false
                 showAddMedicine = true
+            }
+        }
+    }
+
+    private func handleBarcodeCapture(_ barcode: String) {
+        let trimmed = barcode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            ocrErrorMessage = "Couldn't read the barcode. Try again or switch to manual entry."
+            return
+        }
+
+        recognitionResult = nil
+        capturedPhotoData = nil
+        scannedBarcode = trimmed
+        ocrErrorMessage = nil
+        showAddMedicine = true
+    }
+
+    private func handleBarcodeImage(_ image: UIImage) {
+        Task {
+            await MainActor.run {
+                isRecognizing = true
+                capturedPhotoData = nil
+                ocrErrorMessage = nil
+                scannedBarcode = nil
+                recognitionResult = nil
+            }
+
+            do {
+                if let barcode = try await decodeBarcode(from: image) {
+                    await MainActor.run {
+                        scannedBarcode = barcode
+                        showAddMedicine = true
+                    }
+                } else {
+                    await MainActor.run {
+                        ocrErrorMessage = "Couldn't read the barcode from this photo."
+                        showAddMedicine = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    ocrErrorMessage = "Couldn't read the barcode from this photo."
+                    showAddMedicine = true
+                }
+            }
+
+            await MainActor.run {
+                isRecognizing = false
             }
         }
     }
