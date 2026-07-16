@@ -151,3 +151,52 @@
 "ocr_status_error_format" = "OCR request failed with status %d.";
 "parse_status_error_format" = "Parse request failed with status %d.";
 "time_to_take_dosage_format" = "Time to take %@.";
+
+/* Auth */
+"Welcome to MedVision" = "Welcome to MedVision";
+"Create Your Account" = "Create Your Account";
+"Sign in to continue managing your medicines." = "Sign in to continue managing your medicines.";
+"Create an account to keep your medicine information together." = "Create an account to keep your medicine information together.";
+"Sign In" = "Sign In";
+"Create Account" = "Create Account";
+"Sign in or create account" = "Sign in or create account";
+"Password" = "Password";
+"Confirm password" = "Confirm password";
+"Or continue with" = "Or continue with";
+"Sign in with Apple" = "Sign in with Apple";
+"Continue with Google" = "Continue with Google";
+"Continue as Guest" = "Continue as Guest";
+"Continue as guest without signing in" = "Continue as guest without signing in";
+"You’ll stay signed in on this phone until you sign out." = "You’ll stay signed in on this phone until you sign out.";
+"Enter your email address." = "Enter your email address.";
+"Enter a valid email address." = "Enter a valid email address.";
+"Password must be at least 6 characters." = "Password must be at least 6 characters.";
+"Passwords do not match." = "Passwords do not match.";
+"Account created. Check your email to confirm, then sign in." = "Account created. Check your email to confirm, then sign in.";
+"Add your Supabase URL and anon key in SupabaseSecrets.swift first. See Config/AUTH_SETUP.md." = "Add your Supabase URL and anon key in SupabaseSecrets.swift first. See Config/AUTH_SETUP.md.";
+"Apple did not return a sign-in token. Try again." = "Apple did not return a sign-in token. Try again.";
+"Apple sign-in returned an unexpected credential." = "Apple sign-in returned an unexpected credential.";
+"Sign Out" = "Sign Out";
+
+/* Language settings */
+"Language" = "Language";
+"App language" = "App language";
+"English" = "English";
+"Thai" = "Thai";
+
+/* Scan */
+"Label" = "Label";
+"Barcode" = "Barcode";
+"Centre the label inside the frame" = "Centre the label inside the frame";
+"Centre the barcode inside the frame" = "Centre the barcode inside the frame";
+"Scanning label..." = "Scanning label...";
+"Reading barcode..." = "Reading barcode...";
+"Label captured!" = "Label captured!";
+"Barcode found!" = "Barcode found!";
+"Tilt the camera - hold it flat above the label" = "Tilt the camera - hold it flat above the label";
+"Move to better light or turn on flash" = "Move to better light or turn on flash";
+"Move closer - about 20 cm works best" = "Move closer - about 20 cm works best";
+"Hold still - camera is focusing..." = "Hold still - camera is focusing...";
+"Camera access is blocked. Enable it in Settings to scan." = "Camera access is blocked. Enable it in Settings to scan.";
+"No camera is available on this device." = "No camera is available on this device.";
+"Looking good - tap the shutter to scan" = "Looking good - tap the shutter to scan";

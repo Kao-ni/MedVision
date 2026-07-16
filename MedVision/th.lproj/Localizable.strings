@@ -151,3 +151,52 @@
 "ocr_status_error_format" = "การอ่านข้อมูลล้มเหลว รหัส %d";
 "parse_status_error_format" = "การแปลข้อมูลล้มเหลว รหัส %d";
 "time_to_take_dosage_format" = "ถึงเวลาทาน %@";
+
+/* Auth */
+"Welcome to MedVision" = "ยินดีต้อนรับสู่ MedVision";
+"Create Your Account" = "สร้างบัญชีของคุณ";
+"Sign in to continue managing your medicines." = "เข้าสู่ระบบเพื่อจัดการยาของคุณต่อ";
+"Create an account to keep your medicine information together." = "สร้างบัญชีเพื่อเก็บข้อมูลยาของคุณไว้ในที่เดียว";
+"Sign In" = "เข้าสู่ระบบ";
+"Create Account" = "สร้างบัญชี";
+"Sign in or create account" = "เข้าสู่ระบบหรือสร้างบัญชี";
+"Password" = "รหัสผ่าน";
+"Confirm password" = "ยืนยันรหัสผ่าน";
+"Or continue with" = "หรือดำเนินการต่อด้วย";
+"Sign in with Apple" = "เข้าสู่ระบบด้วย Apple";
+"Continue with Google" = "ดำเนินการต่อด้วย Google";
+"Continue as Guest" = "ใช้งานแบบผู้เยี่ยมชม";
+"Continue as guest without signing in" = "ใช้งานแบบผู้เยี่ยมชมโดยไม่เข้าสู่ระบบ";
+"You’ll stay signed in on this phone until you sign out." = "คุณจะยังคงเข้าสู่ระบบบนโทรศัพท์เครื่องนี้จนกว่าจะออกจากระบบ";
+"Enter your email address." = "กรุณากรอกอีเมลของคุณ";
+"Enter a valid email address." = "กรุณากรอกอีเมลให้ถูกต้อง";
+"Password must be at least 6 characters." = "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร";
+"Passwords do not match." = "รหัสผ่านไม่ตรงกัน";
+"Account created. Check your email to confirm, then sign in." = "สร้างบัญชีแล้ว กรุณาตรวจสอบอีเมลเพื่อยืนยัน แล้วเข้าสู่ระบบ";
+"Add your Supabase URL and anon key in SupabaseSecrets.swift first. See Config/AUTH_SETUP.md." = "กรุณาเพิ่ม URL และ anon key ของ Supabase ใน SupabaseSecrets.swift ก่อน ดู Config/AUTH_SETUP.md";
+"Apple did not return a sign-in token. Try again." = "Apple ไม่ได้ส่งโทเค็นเข้าสู่ระบบ กรุณาลองอีกครั้ง";
+"Apple sign-in returned an unexpected credential." = "การเข้าสู่ระบบด้วย Apple ส่งข้อมูลที่ไม่ถูกต้อง";
+"Sign Out" = "ออกจากระบบ";
+
+/* Language settings */
+"Language" = "ภาษา";
+"App language" = "ภาษาของแอป";
+"English" = "English";
+"Thai" = "ไทย";
+
+/* Scan */
+"Label" = "ฉลาก";
+"Barcode" = "บาร์โค้ด";
+"Centre the label inside the frame" = "จัดฉลากให้อยู่กลางกรอบ";
+"Centre the barcode inside the frame" = "จัดบาร์โค้ดให้อยู่กลางกรอบ";
+"Scanning label..." = "กำลังสแกนฉลาก...";
+"Reading barcode..." = "กำลังอ่านบาร์โค้ด...";
+"Label captured!" = "จับภาพฉลากแล้ว!";
+"Barcode found!" = "พบบาร์โค้ดแล้ว!";
+"Tilt the camera - hold it flat above the label" = "เอียงกล้อง - ถือให้ขนานเหนือฉลาก";
+"Move to better light or turn on flash" = "ย้ายไปที่ที่มีแสงดีขึ้น หรือเปิดแฟลช";
+"Move closer - about 20 cm works best" = "ขยับใกล้ขึ้น - ประมาณ 20 ซม. ดีที่สุด";
+"Hold still - camera is focusing..." = "ถือนิ่ง ๆ - กล้องกำลังโฟกัส...";
+"Camera access is blocked. Enable it in Settings to scan." = "การเข้าถึงกล้องถูกบล็อก เปิดในตั้งค่าเพื่อสแกน";
+"No camera is available on this device." = "ไม่มีกล้องบนอุปกรณ์นี้";
+"Looking good - tap the shutter to scan" = "ดูดีแล้ว - แตะชัตเตอร์เพื่อสแกน";

@@ -36,6 +36,7 @@ The core loop is: **photograph medicine -> confirm extracted info -> set schedul
 - **App framework:** native iOS with SwiftUI and SwiftData.
 - **Backend / data:** Supabase Auth, Postgres, Storage, RLS, and Edge Functions.
 - **iOS Auth:** Supabase Auth via `supabase-swift`. The app holds only the **anon/publishable** key + project URL (gitignored `SupabaseSecrets.swift`). Never put the service role key in the client. Session tokens persist in Keychain so users stay signed in until Sign Out. Setup steps: `MedVision/Config/AUTH_SETUP.md`.
+- **Localization:** UI copy lives in `en.lproj` / `th.lproj` `Localizable.strings`. App language is `profile_displayLanguage` (`en`/`th`), applied via `.environment(\.locale)` in `MedVisionApp` and `AppLanguage.localized` for programmatic strings. Change language in onboarding or Profile.
 - **Recognition:** Typhoon OCR, called only through the backend proxy (prototype still calls Typhoon from the client — migrate later).
 - **Drug info:** public drug database API proxied through the backend.
 
@@ -79,6 +80,7 @@ Design notes for agents:
 - **Naming:** clear over clever. This is a small codebase maintained by 2 people; favor readability.
 - **Accessibility:** every interactive element needs an accessible label and a large enough touch target. This is core to the product, not optional.
 - **Comments:** explain why, not what. Flag anything provisional with `TODO:` or `HACK:` so it's greppable.
+- **UI strings:** never hard-code user-facing English. Add keys to both `en.lproj` and `th.lproj`, use `Text("…")` / `LocalizedStringKey` or `AppLanguage.localized`.
 - **Secrets:** never commit API keys (OCR service, drug API, Supabase secrets). Use env/config files that are gitignored. If you spot a committed secret, stop and flag it.
 - **Commits/PRs:** small and scoped to one phase task where possible. Reference the relevant `plan.md` phase.
 

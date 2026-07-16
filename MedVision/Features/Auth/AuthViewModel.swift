@@ -4,9 +4,16 @@ import Foundation
 @MainActor
 @Observable
 final class AuthViewModel {
-    enum Mode: String, CaseIterable {
-        case signIn = "Sign In"
-        case signUp = "Create Account"
+    enum Mode: CaseIterable {
+        case signIn
+        case signUp
+
+        var titleKey: String {
+            switch self {
+            case .signIn: return "Sign In"
+            case .signUp: return "Create Account"
+            }
+        }
     }
 
     var mode: Mode = .signIn
@@ -24,7 +31,7 @@ final class AuthViewModel {
     }
 
     var primaryButtonTitle: String {
-        mode == .signIn ? "Sign In" : "Create Account"
+        AppLanguage.localized(mode.titleKey)
     }
 
     func submit() async {
@@ -33,20 +40,20 @@ final class AuthViewModel {
 
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedEmail.isEmpty else {
-            errorMessage = "Enter your email address."
+            errorMessage = AppLanguage.localized("Enter your email address.")
             return
         }
         guard trimmedEmail.contains("@"), trimmedEmail.contains(".") else {
-            errorMessage = "Enter a valid email address."
+            errorMessage = AppLanguage.localized("Enter a valid email address.")
             return
         }
         guard password.count >= 6 else {
-            errorMessage = "Password must be at least 6 characters."
+            errorMessage = AppLanguage.localized("Password must be at least 6 characters.")
             return
         }
         if mode == .signUp {
             guard password == confirmPassword else {
-                errorMessage = "Passwords do not match."
+                errorMessage = AppLanguage.localized("Passwords do not match.")
                 return
             }
         }
@@ -63,7 +70,8 @@ final class AuthViewModel {
             }
         } catch {
             let text = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            if text.localizedCaseInsensitiveContains("check your email") {
+            if text.localizedCaseInsensitiveContains("check your email")
+                || text.localizedCaseInsensitiveContains("ตรวจสอบอีเมล") {
                 infoMessage = text
                 errorMessage = nil
             } else {

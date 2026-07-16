@@ -11,11 +11,13 @@ enum AuthServiceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return "Add your Supabase URL and anon key in SupabaseSecrets.swift first. See Config/AUTH_SETUP.md."
+            return AppLanguage.localized(
+                "Add your Supabase URL and anon key in SupabaseSecrets.swift first. See Config/AUTH_SETUP.md."
+            )
         case .missingAppleIDToken:
-            return "Apple did not return a sign-in token. Try again."
+            return AppLanguage.localized("Apple did not return a sign-in token. Try again.")
         case .invalidAppleCredential:
-            return "Apple sign-in returned an unexpected credential."
+            return AppLanguage.localized("Apple sign-in returned an unexpected credential.")
         case .message(let text):
             return text
         }
@@ -83,7 +85,7 @@ final class AuthService {
         } else {
             // Email confirmation may be required in the project settings.
             throw AuthServiceError.message(
-                "Account created. Check your email to confirm, then sign in."
+                AppLanguage.localized("Account created. Check your email to confirm, then sign in.")
             )
         }
     }
