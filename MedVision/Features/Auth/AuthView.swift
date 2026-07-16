@@ -7,35 +7,35 @@ struct AuthView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                VStack(spacing: 18) {
+            VStack(spacing: 14) {
+                VStack(spacing: 10) {
                     ZStack {
                         Circle()
                             .fill(Color.accentColor.opacity(0.12))
-                            .frame(width: 140, height: 140)
+                            .frame(width: 92, height: 92)
 
                         Image(systemName: "pills.fill")
-                            .font(.system(size: 62, weight: .semibold))
+                            .font(.system(size: 40, weight: .semibold))
                             .foregroundStyle(Color.accentColor)
                     }
 
-                    VStack(spacing: 8) {
+                    VStack(spacing: 4) {
                         Text(viewModel.mode == .signIn
                              ? "Welcome to MedVision"
                              : "Create Your Account")
-                            .font(.largeTitle.bold())
+                            .font(.title.bold())
                             .multilineTextAlignment(.center)
                             .accessibilityAddTraits(.isHeader)
 
                         Text(viewModel.mode == .signIn
                              ? "Sign in to continue managing your medicines."
                              : "Create an account to keep your medicine information together.")
-                            .font(.title3)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
                 }
-                .padding(.top, 20)
+                .padding(.top, 8)
 
                 Picker("Mode", selection: $viewModel.mode) {
                     ForEach(AuthViewModel.Mode.allCases, id: \.self) { mode in
@@ -49,7 +49,7 @@ struct AuthView: View {
                 .background(Color.secondary.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
 
-                VStack(spacing: 16) {
+                VStack(spacing: 10) {
                     authField(
                         title: "Email",
                         text: $viewModel.email,
@@ -99,7 +99,7 @@ struct AuthView: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(minHeight: 60)
+                    .frame(minHeight: 52)
                     .background(Color.accentColor)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -122,15 +122,15 @@ struct AuthView: View {
                         .frame(height: 1)
                 }
 
-                VStack(spacing: 12) {
+                VStack(spacing: 8) {
                     SignInWithAppleButton(.signIn) { request in
                         request.requestedScopes = [.email, .fullName]
                     } onCompletion: { result in
                         Task { await viewModel.handleAppleResult(result) }
                     }
                     .signInWithAppleButtonStyle(.black)
-                    .frame(height: 60)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .frame(height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                     .disabled(viewModel.isLoading || !auth.isConfigured)
                     .accessibilityLabel("Sign in with Apple")
 
@@ -145,7 +145,7 @@ struct AuthView: View {
                                 .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(minHeight: 60)
+                        .frame(minHeight: 50)
                         .background(Color.secondary.opacity(0.08))
                         .overlay {
                             RoundedRectangle(cornerRadius: 18)
@@ -166,7 +166,7 @@ struct AuthView: View {
                         .font(.headline)
                         .foregroundStyle(Color.accentColor)
                         .frame(maxWidth: .infinity)
-                        .frame(minHeight: 56)
+                        .frame(minHeight: 46)
                         .background(Color.accentColor.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: 18))
                 }
@@ -175,16 +175,17 @@ struct AuthView: View {
                 .accessibilityLabel("Continue as guest without signing in")
 
                 Text("You’ll stay signed in on this phone until you sign out.")
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 8)
             }
-            .padding(.horizontal, 28)
+            .padding(.horizontal, 24)
         }
         .background(Color(.systemBackground))
         .scrollDismissesKeyboard(.interactively)
+        .scrollIndicators(.hidden)
     }
 
     private func authField(
@@ -194,9 +195,9 @@ struct AuthView: View {
         keyboard: UIKeyboardType,
         isSecure: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
             Group {
                 if isSecure {
                     SecureField(title, text: text)
@@ -208,9 +209,9 @@ struct AuthView: View {
                 }
             }
             .textContentType(contentType)
-            .font(.title3)
+            .font(.body)
             .padding(.horizontal, 16)
-            .padding(.vertical, 16)
+            .padding(.vertical, 12)
             .background(Color.secondary.opacity(0.08))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
