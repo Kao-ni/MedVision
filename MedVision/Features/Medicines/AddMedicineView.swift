@@ -12,6 +12,7 @@ struct AddMedicineView: View {
     var prefilled: RecognizedMedicine? = nil
     var existing: Medicine? = nil
     var initialPhotoData: Data? = nil
+    var scanErrorMessage: String? = nil
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -29,10 +30,16 @@ struct AddMedicineView: View {
     private var isOCRResult: Bool { prefilled != nil && existing == nil }
     private var isSaveDisabled: Bool { name.trimmingCharacters(in: .whitespaces).isEmpty }
 
-    init(prefilled: RecognizedMedicine? = nil, existing: Medicine? = nil, initialPhotoData: Data? = nil) {
+    init(
+        prefilled: RecognizedMedicine? = nil,
+        existing: Medicine? = nil,
+        initialPhotoData: Data? = nil,
+        scanErrorMessage: String? = nil
+    ) {
         self.prefilled = prefilled
         self.existing = existing
         self.initialPhotoData = initialPhotoData
+        self.scanErrorMessage = scanErrorMessage
 
         if let m = existing {
             _name          = State(initialValue: m.name)
@@ -65,6 +72,15 @@ struct AddMedicineView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let scanErrorMessage {
+                    Section {
+                        Label(scanErrorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.orange)
+                    }
+                    .listRowBackground(Color.orange.opacity(0.08))
+                }
+
                 if isOCRResult {
                     Section {
                         Label("Check the details below and correct anything before saving.", systemImage: "info.circle")

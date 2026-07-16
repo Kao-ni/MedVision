@@ -1,37 +1,9 @@
 import SwiftUI
 import SwiftData
-import PythonKit
 
 @main
 struct MedVisionApp: App {
-    let container: ModelContainer
-    @State private var authService = AuthService()
-
-    init() {
-        MedVisionApp.configurePython()
-        container = MedVisionApp.makeContainer()
-    }
-
-    private static func configurePython() {
-        guard let bundlePath = Bundle.main.resourcePath else { return }
-
-        // PYTHONHOME tells the interpreter where to find the standard library.
-        // With an embedded python-apple-support framework the stdlib lives
-        // directly inside the bundle resource directory.
-        setenv("PYTHONHOME", bundlePath, 1)
-        setenv("PYTHONPATH", bundlePath, 1)
-
-        // PythonKit locates the Python dylib via PYTHON_LIBRARY.
-        // The embedded Python.xcframework is installed as a framework under
-        // the app's Frameworks directory; point PythonKit at it explicitly so
-        // it doesn't have to search.
-        if let frameworksPath = Bundle.main.privateFrameworksURL {
-            let pythonLibPath = frameworksPath
-                .appendingPathComponent("Python.framework")
-                .appendingPathComponent("Python")
-            setenv("PYTHON_LIBRARY", pythonLibPath.path, 1)
-        }
-    }
+    private static let container: ModelContainer = makeContainer()
 
     var body: some Scene {
         WindowGroup {
@@ -41,7 +13,7 @@ struct MedVisionApp: App {
                     authService.handleOpenURL(url)
                 }
         }
-        .modelContainer(container)
+        .modelContainer(Self.container)
     }
 
     // Builds the persistent ModelContainer. If the schema has changed and
