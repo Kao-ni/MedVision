@@ -16,6 +16,7 @@ struct AddMedicineView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     @State private var name: String
     @State private var dosage: String
@@ -107,7 +108,7 @@ struct AddMedicineView: View {
 
                     Picker("Form", selection: $form) {
                         ForEach(MedicineForm.allCases, id: \.self) { f in
-                            Text(f.rawValue).tag(f)
+                            Text(LocalizedStringKey(f.localizationKey)).tag(f)
                         }
                     }
                 }
@@ -121,7 +122,13 @@ struct AddMedicineView: View {
 
                 photoSection
             }
-            .navigationTitle(isEditing ? "Edit Medicine" : isOCRResult ? "Confirm Medicine" : "Add Medicine")
+            .navigationTitle(
+                isEditing
+                    ? LocalizedStringKey("Edit Medicine")
+                    : isOCRResult
+                        ? LocalizedStringKey("Confirm Medicine")
+                        : LocalizedStringKey("Add Medicine")
+            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -145,7 +152,11 @@ struct AddMedicineView: View {
             } else {
                 ForEach(scheduledTimes.indices, id: \.self) { i in
                     DatePicker(
-                        "Dose \(i + 1)",
+                        AppLanguage.localized(
+                            "dose_number_format",
+                            locale: locale,
+                            arguments: [i + 1]
+                        ),
                         selection: $scheduledTimes[i],
                         displayedComponents: .hourAndMinute
                     )

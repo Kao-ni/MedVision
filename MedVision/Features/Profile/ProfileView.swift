@@ -5,13 +5,14 @@ struct ProfileView: View {
     @AppStorage("profile_firstName") private var firstName = "First Name"
     @AppStorage("profile_lastName") private var lastName = "Last Name"
     @AppStorage("profile_gender") private var gender = "Male"
-    @AppStorage("profile_age") private var age = "28"
+    @AppStorage("profile_age") private var age = ""
     @AppStorage("profile_birthdayTimestamp") private var birthdayTimestamp: Double = Date().timeIntervalSince1970
     @AppStorage("profile_bloodType") private var bloodType = "O+"
     @AppStorage("profile_allergies") private var allergies = "None"
     @AppStorage("profile_conditions") private var conditions = "None"
     @AppStorage("profile_medications") private var medications = "None"
     @AppStorage("profile_phone") private var phone = ""
+    @Environment(\.locale) private var locale
 
     @State private var showEditSheet = false
     @State private var isSigningOut = false
@@ -24,6 +25,7 @@ struct ProfileView: View {
     private var birthdayDisplay: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
+        formatter.locale = locale
         return formatter.string(from: Date(timeIntervalSince1970: birthdayTimestamp))
     }
 
@@ -56,7 +58,7 @@ struct ProfileView: View {
                             }
 
                             HStack(spacing: 8) {
-                                statPill(value: gender, label: "Gender")
+                                statPill(value: gender, label: "Gender", localizeValue: true)
                                 statPill(value: age, label: "Age")
                                 statPill(value: birthdayDisplay, label: "Birthday")
                             }
@@ -179,11 +181,21 @@ struct ProfileView: View {
         }
     }
 
-    private func statPill(value: String, label: String) -> some View {
+    private func statPill(
+        value: String,
+        label: LocalizedStringKey,
+        localizeValue: Bool = false
+    ) -> some View {
         VStack(spacing: 1) {
-            Text(value)
-                .font(.caption)
-                .fontWeight(.semibold)
+            Group {
+                if localizeValue {
+                    Text(LocalizedStringKey(value))
+                } else {
+                    Text(verbatim: value)
+                }
+            }
+            .font(.caption)
+            .fontWeight(.semibold)
             Text(label)
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
@@ -197,7 +209,7 @@ struct ProfileView: View {
 
     private func infoCard(title: String, items: [(String, Color, String, String)]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title)
+            Text(LocalizedStringKey(title))
                 .font(.footnote)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
@@ -221,9 +233,9 @@ struct ProfileView: View {
                             .background(color.opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                        Text(label)
+                        Text(LocalizedStringKey(label))
                         Spacer()
-                        Text(value)
+                        Text(LocalizedStringKey(value))
                             .foregroundStyle(.secondary)
                         Image(systemName: "chevron.right")
                             .font(.caption2)
@@ -275,7 +287,9 @@ struct EditProfileSheet: View {
 
                 Section("Personal") {
                     Picker("Gender", selection: $gender) {
-                        ForEach(genderOptions, id: \.self) { Text($0) }
+                        ForEach(genderOptions, id: \.self) {
+                            Text(LocalizedStringKey($0))
+                        }
                     }
                     TextField("Age", text: $age)
                         .keyboardType(.numberPad)
@@ -284,7 +298,9 @@ struct EditProfileSheet: View {
 
                 Section("Health") {
                     Picker("Blood Type", selection: $bloodType) {
-                        ForEach(bloodTypeOptions, id: \.self) { Text($0) }
+                        ForEach(bloodTypeOptions, id: \.self) {
+                            Text(LocalizedStringKey($0))
+                        }
                     }
                     LabeledContent {
                         TextField("None", text: $allergies)
