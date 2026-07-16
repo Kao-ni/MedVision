@@ -200,3 +200,7 @@
 "Camera access is blocked. Enable it in Settings to scan." = "Camera access is blocked. Enable it in Settings to scan.";
 "No camera is available on this device." = "No camera is available on this device.";
 "Looking good - tap the shutter to scan" = "Looking good - tap the shutter to scan";
+
+/* Meal-linked reminders */
+"Meal times" = "Meal times";
+"Times suggested from your meal schedule." = "Times suggested from your meal schedule.";

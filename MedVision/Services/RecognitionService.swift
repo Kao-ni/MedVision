@@ -8,6 +8,7 @@ struct RecognizedMedicine {
     var form: MedicineForm = .tablet
     var notes: String = ""
     var photoData: Data? = nil
+    var scheduleHint: MedicineScheduleHint? = nil
 }
 
 enum RecognitionError: LocalizedError {
@@ -346,14 +347,71 @@ struct RecognitionService {
             keys: ["notes", "warning", "frequency_note", "frequencyNote"]
         )
         let form = mapForm(firstString(from: json, keys: ["form", "dosage_form", "route"]))
+        let scheduleHint = parseScheduleHint(from: json)
 
         return RecognizedMedicine(
             name: name,
             dosage: dosage,
             form: form,
             notes: notes,
-            photoData: photoData
+            photoData: photoData,
+            scheduleHint: scheduleHint
         )
+    }
+
+    private func parseScheduleHint(from json: [String: Any]) -> MedicineScheduleHint? {
+        let containerKeys = ["medicine", "parsed", "result", "data", "payload", "fields"]
+
+        var whenToTake = json["when_to_take"] as? [String: Any]
+        if whenToTake == nil {
+            for containerKey in containerKeys {
+                if let nested = json[containerKey] as? [String: Any],
+                   let nestedWhen = nested["when_to_take"] as? [String: Any] {
+                    whenToTake = nestedWhen
+                    break
+                }
+            }
+        }
+
+        guard let whenToTake else { return nil }
+
+        let raw = stringValue(whenToTake["raw"])
+        let timesPerDay: Int?
+        if let number = whenToTake["times_per_day"] as? Int {
+            timesPerDay = number
+        } else if let number = whenToTake["times_per_day"] as? NSNumber {
+            timesPerDay = number.intValue
+        } else {
+            timesPerDay = nil
+        }
+
+        let slotStrings = whenToTake["time_slots"] as? [String] ?? []
+        let timeSlots = slotStrings.compactMap { MealSlot(rawValue: $0.lowercased()) }
+
+        let withFoodRaw = stringValue(whenToTake["with_food"]).lowercased()
+        let withFood: WithFoodRelation? = withFoodRaw.isEmpty
+            ? nil
+            : WithFoodRelation(rawValue: withFoodRaw)
+
+        let asNeeded = whenToTake["as_needed"] as? Bool ?? false
+
+        let hint = MedicineScheduleHint(
+            raw: raw,
+            timesPerDay: timesPerDay,
+            timeSlots: timeSlots,
+            withFood: withFood,
+            asNeeded: asNeeded
+        )
+
+        if hint.raw.isEmpty
+            && hint.timesPerDay == nil
+            && hint.timeSlots.isEmpty
+            && hint.withFood == nil
+            && !hint.asNeeded {
+            return nil
+        }
+
+        return hint
     }
 
     private func stringValue(_ value: Any?) -> String {

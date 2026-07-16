@@ -57,10 +57,16 @@ struct AddMedicineView: View {
             _frequencyNote = State(initialValue: m.frequencyNote)
             _photoData     = State(initialValue: m.photoData)
         } else if let p = prefilled {
+            let suggestion = MealScheduleMapper.suggest(
+                hint: p.scheduleHint,
+                meals: .loadFromDefaults()
+            )
             _name          = State(initialValue: p.name)
             _dosage        = State(initialValue: p.dosage)
             _form          = State(initialValue: p.form)
             _notes         = State(initialValue: p.notes)
+            _scheduledTimes = State(initialValue: suggestion.times)
+            _frequencyNote = State(initialValue: suggestion.frequencyNote)
             _barcode       = State(initialValue: scannedBarcode ?? "")
             _scheduledTimes = State(initialValue: [])
             _frequencyNote = State(initialValue: "")
@@ -202,8 +208,13 @@ struct AddMedicineView: View {
         } header: {
             Text("Reminder Schedule")
         } footer: {
-            Text("Swipe left on a time to remove it.")
-                .opacity(scheduledTimes.isEmpty ? 0 : 1)
+            VStack(alignment: .leading, spacing: 4) {
+                if isOCRResult && !scheduledTimes.isEmpty {
+                    Text("Times suggested from your meal schedule.")
+                }
+                Text("Swipe left on a time to remove it.")
+                    .opacity(scheduledTimes.isEmpty ? 0 : 1)
+            }
         }
     }
 

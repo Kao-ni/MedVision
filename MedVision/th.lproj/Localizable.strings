@@ -200,3 +200,7 @@
 "Camera access is blocked. Enable it in Settings to scan." = "การเข้าถึงกล้องถูกบล็อก เปิดในตั้งค่าเพื่อสแกน";
 "No camera is available on this device." = "ไม่มีกล้องบนอุปกรณ์นี้";
 "Looking good - tap the shutter to scan" = "ดูดีแล้ว - แตะชัตเตอร์เพื่อสแกน";
+
+/* Meal-linked reminders */
+"Meal times" = "เวลารับประทานอาหาร";
+"Times suggested from your meal schedule." = "เวลาถูกแนะนำจากตารางมื้ออาหารของคุณ";
