@@ -78,7 +78,9 @@ struct TodayView: View {
             .mvScreenBackground()
             .toolbar(.hidden, for: .navigationBar)
             .task {
+                DoseSyncService.mirrorMissedStatuses(events: Array(allEvents))
                 generateTodayEventsIfNeeded()
+                await syncTodayToCloud()
                 if reduceMotion {
                     hasAppeared = true
                 } else {
@@ -384,6 +386,7 @@ private struct TodayDoseCard: View {
                     Button {
                         event.status = .pending
                         event.takenTime = nil
+                        Task { await syncDose() }
                     } label: {
                         Label("Undo", systemImage: "arrow.uturn.backward")
                             .labelStyle(.iconOnly)
