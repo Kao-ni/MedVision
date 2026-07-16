@@ -1,6 +1,36 @@
 import SwiftUI
 import SwiftData
 
+private enum MainTab: Int, CaseIterable, Identifiable {
+    case today
+    case medicines
+    case scan
+    case history
+    case profile
+
+    var id: Int { rawValue }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .today: "Today"
+        case .medicines: "Medicines"
+        case .scan: "Scan"
+        case .history: "History"
+        case .profile: "Profile"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .today: "sun.horizon.fill"
+        case .medicines: "pills.fill"
+        case .scan: "document.viewfinder"
+        case .history: "clock.fill"
+        case .profile: "person.crop.circle.fill"
+        }
+    }
+}
+
 struct ContentView: View {
     @Environment(AuthService.self) private var auth
     @State private var showSplash = true
@@ -9,9 +39,9 @@ struct ContentView: View {
     @AppStorage("hasChosenLanguage") private var hasChosenLanguage = false
     @AppStorage("hasCompletedTermsPlaceholder") private var hasCompletedTermsPlaceholder = false
     @AppStorage("shouldShowOnboarding") private var shouldShowOnboarding = true
-    @State private var selectedTab = 0
+    @State private var selectedTab: MainTab = .today
+    @State private var lastNonScanTab: MainTab = .today
     @State private var showScanCamera = false
-    @State private var previousTab = 0
 
     var body: some View {
         ZStack {
@@ -48,6 +78,14 @@ struct ContentView: View {
                     }
             }
         }
+        .onChange(of: selectedTab) { _, newValue in
+            if newValue == .scan {
+                selectedTab = lastNonScanTab
+                showScanCamera = true
+            } else {
+                lastNonScanTab = newValue
+            }
+        }
         .task {
             if authViewModel == nil {
                 authViewModel = AuthViewModel(auth: auth)
@@ -58,7 +96,7 @@ struct ContentView: View {
         .onAppear {
             #if DEBUG
             // Keep the pre-app flow easy to test from Xcode. This runs only
-            // once at launch, so the full welcome → onboarding flow re-shows.
+            // once at launch, so the full welcome -> onboarding flow re-shows.
             hasSeenWelcome = false
             hasChosenLanguage = false
             hasCompletedTermsPlaceholder = false
@@ -70,34 +108,35 @@ struct ContentView: View {
     private var mainTabs: some View {
         TabView(selection: $selectedTab) {
             TodayView()
-                .tabItem { Label("Today", systemImage: "sun.horizon") }
-                .tag(0)
+                .tag(MainTab.today)
+                .tabItem {
+                    Label(MainTab.today.title, systemImage: MainTab.today.systemImage)
+                }
             MedicinesView()
-                .tabItem { Label("Medicines", systemImage: "pills") }
-                .tag(1)
+                .tag(MainTab.medicines)
+                .tabItem {
+                    Label(MainTab.medicines.title, systemImage: MainTab.medicines.systemImage)
+                }
             Color.clear
-                .tabItem { Label("Scan", systemImage: "document.viewfinder") }
-                .tag(2)
+                .tag(MainTab.scan)
+                .tabItem {
+                    Label(MainTab.scan.title, systemImage: MainTab.scan.systemImage)
+                }
             HistoryView()
-                .tabItem { Label("History", systemImage: "clock") }
-                .tag(3)
+                .tag(MainTab.history)
+                .tabItem {
+                    Label(MainTab.history.title, systemImage: MainTab.history.systemImage)
+                }
             ProfileView()
-                .tabItem { Label("Profile", systemImage: "person.crop.circle") }
-                .tag(4)
+                .tag(MainTab.profile)
+                .tabItem {
+                    Label(MainTab.profile.title, systemImage: MainTab.profile.systemImage)
+                }
         }
-        .onChange(of: selectedTab) { _, tab in
-            if tab != 2 { previousTab = tab }
-            showScanCamera = tab == 2
-        }
-        .fullScreenCover(isPresented: $showScanCamera, onDismiss: {
-            selectedTab = previousTab
-        }) {
+        .fullScreenCover(isPresented: $showScanCamera) {
             ScanView(
                 showCamera: $showScanCamera,
-                onClose: {
-                    selectedTab = previousTab
-                    showScanCamera = false
-                }
+                onClose: { showScanCamera = false }
             )
             .ignoresSafeArea()
         }

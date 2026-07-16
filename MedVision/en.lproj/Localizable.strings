@@ -27,10 +27,25 @@
 "Second" = "Second";
 
 "Today" = "Today";
+"Good morning" = "Good morning";
+"Good afternoon" = "Good afternoon";
+"Good evening" = "Good evening";
+"Daily progress" = "Daily progress";
+"Add medicines from the Medicines tab" = "Add medicines from the Medicines tab";
 "Medicines" = "Medicines";
+"Manage doses and reminders in one place" = "Manage doses and reminders in one place";
+"Your Medicines" = "Your Medicines";
+"Search medicines" = "Search medicines";
+"Clear search" = "Clear search";
+"No matching medicines" = "No matching medicines";
+"Try a different medicine name or dosage." = "Try a different medicine name or dosage.";
 "Scan" = "Scan";
 "History" = "History";
+"A record of your medicine routine" = "A record of your medicine routine";
+"No results for this filter" = "No results for this filter";
+"Choose another status to see your dose history." = "Choose another status to see your dose history.";
 "Profile" = "Profile";
+"Your health and account preferences" = "Your health and account preferences";
 "Overdue" = "Overdue";
 "Upcoming" = "Upcoming";
 "Done" = "Done";
@@ -68,6 +83,12 @@
 "e.g. Take with food" = "e.g. Take with food";
 "Edit Medicine" = "Edit Medicine";
 "Confirm Medicine" = "Confirm Medicine";
+"Scan complete" = "Scan complete";
+"Barcode captured" = "Barcode captured";
+"Review medicine details" = "Review medicine details";
+"Review every field before adding this medicine to your schedule." = "Review every field before adding this medicine to your schedule.";
+"Save Changes" = "Save Changes";
+"Confirm and Save" = "Confirm and Save";
 "Add Medicine" = "Add Medicine";
 "Cancel" = "Cancel";
 "Save" = "Save";
@@ -142,6 +163,7 @@
 
 "progress_taken_format" = "%d of %d taken today";
 "progress_remaining_format" = "%d dose(s) remaining";
+"percent_format" = "%d percent";
 "taken_at_format" = "at %@";
 "scheduled_accessibility_format" = "%@scheduled %@";
 "doses_per_day_format" = "%d×/day";

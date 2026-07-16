@@ -686,6 +686,13 @@ private final class ScannerCameraController: NSObject, ObservableObject {
 
     private func showCaptureFeedback() {
         feedbackTask?.cancel()
+        guard currentMode == .barcode else {
+            DispatchQueue.main.async {
+                self.captureFeedback = nil
+            }
+            return
+        }
+
         let captureMode = currentMode
         let scanningText = captureMode.scanText
         DispatchQueue.main.async {

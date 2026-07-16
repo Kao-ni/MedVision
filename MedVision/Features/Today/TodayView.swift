@@ -6,96 +6,164 @@ struct TodayView: View {
     @Query private var allMedicines: [Medicine]
     @Environment(\.modelContext) private var context
     @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AppStorage("profile_firstName") private var firstName = ""
+    @State private var hasAppeared = false
 
     private var todayEvents: [DoseEvent] {
         allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
     }
 
-    private var overdue: [DoseEvent]  { todayEvents.filter { $0.status == .pending && $0.scheduledTime < .now } }
-    private var upcoming: [DoseEvent] { todayEvents.filter { $0.status == .pending && $0.scheduledTime >= .now } }
-    private var done: [DoseEvent]     { todayEvents.filter { $0.status != .pending }.sorted { $0.scheduledTime < $1.scheduledTime } }
+    private var overdue: [DoseEvent] {
+        todayEvents.filter { $0.status == .pending && $0.scheduledTime < .now }
+    }
 
-    private var takenCount: Int  { todayEvents.filter { $0.status == .complete }.count }
-    private var totalCount: Int  { todayEvents.count }
+    private var upcoming: [DoseEvent] {
+        todayEvents.filter { $0.status == .pending && $0.scheduledTime >= .now }
+    }
+
+    private var done: [DoseEvent] {
+        todayEvents
+            .filter { $0.status != .pending }
+            .sorted { $0.scheduledTime < $1.scheduledTime }
+    }
+
+    private var takenCount: Int { todayEvents.filter { $0.status == .complete }.count }
+    private var totalCount: Int { todayEvents.count }
     private var progress: Double { totalCount > 0 ? Double(takenCount) / Double(totalCount) : 0 }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if todayEvents.isEmpty {
-                    emptyState
-                } else {
-                    list
-                }
-            }
-            .navigationTitle("Today")
-            .task { generateTodayEventsIfNeeded() }
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    VStack(spacing: 0) {
-                        Text("Today")
-                            .font(.headline)
-                        Text(
-                            Date.now,
-                            format: Date.FormatStyle(date: .abbreviated, time: .omitted)
-                                .locale(locale)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    header
+
+                    if todayEvents.isEmpty {
+                        emptyState
+                    } else {
+                        ProgressCard(taken: takenCount, total: totalCount, progress: progress)
+
+                        doseSection(
+                            title: "Overdue",
+                            systemImage: "exclamationmark.circle.fill",
+                            tint: .mvDanger,
+                            events: overdue,
+                            overdue: true
                         )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        doseSection(
+                            title: "Upcoming",
+                            systemImage: "clock.fill",
+                            tint: .mvAccent,
+                            events: upcoming,
+                            overdue: false
+                        )
+                        doseSection(
+                            title: "Done",
+                            systemImage: "checkmark.circle.fill",
+                            tint: .mvSuccess,
+                            events: done,
+                            overdue: false
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, 28)
+                .opacity(hasAppeared ? 1 : 0)
+                .offset(y: hasAppeared ? 0 : 10)
+            }
+            .scrollIndicators(.hidden)
+            .mvScreenBackground()
+            .toolbar(.hidden, for: .navigationBar)
+            .task {
+                generateTodayEventsIfNeeded()
+                if reduceMotion {
+                    hasAppeared = true
+                } else {
+                    withAnimation(.easeOut(duration: 0.45)) {
+                        hasAppeared = true
                     }
                 }
             }
         }
     }
 
-    private var list: some View {
-        List {
-            Section {
-                ProgressCard(taken: takenCount, total: totalCount, progress: progress)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(Color.clear)
-            }
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(greeting)
+                .font(.subheadline)
+                .foregroundStyle(Color.mvSubtle)
 
-            if !overdue.isEmpty {
-                Section {
-                    ForEach(overdue) { event in
-                        TodayDoseRow(event: event, isOverdue: true)
-                    }
-                } header: {
-                    Label("Overdue", systemImage: "exclamationmark.circle.fill")
-                        .foregroundStyle(.red)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Today")
+                Text(
+                    Date.now,
+                    format: Date.FormatStyle(date: .abbreviated, time: .omitted)
+                        .locale(locale)
+                )
+            }
+            .font(.system(size: 28, weight: .bold, design: .rounded))
+            .foregroundStyle(Color.mvInk)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: .now)
+        let key: String
+        switch hour {
+        case 5..<12: key = "Good morning"
+        case 12..<18: key = "Good afternoon"
+        default: key = "Good evening"
+        }
+        let localized = AppLanguage.localized(key, locale: locale)
+        let trimmedName = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, trimmedName != "First Name" else { return localized }
+        return "\(localized), \(trimmedName)"
+    }
+
+    @ViewBuilder
+    private func doseSection(
+        title: LocalizedStringKey,
+        systemImage: String,
+        tint: Color,
+        events: [DoseEvent],
+        overdue: Bool
+    ) -> some View {
+        if !events.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    MVSectionHeader(title: title, systemImage: systemImage, tint: tint)
+                    Spacer()
+                    Text("\(events.count)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(tint.opacity(0.13), in: Capsule())
                 }
-            }
 
-            if !upcoming.isEmpty {
-                Section {
-                    ForEach(upcoming) { event in
-                        TodayDoseRow(event: event, isOverdue: false)
-                    }
-                } header: {
-                    Label {
-                        Text("Upcoming — \(upcoming.count)")
-                    } icon: {
-                        Image(systemName: "clock")
-                    }
-                }
-            }
-
-            if !done.isEmpty {
-                Section {
-                    ForEach(done) { event in
-                        TodayDoseRow(event: event, isOverdue: false)
-                    }
-                } header: {
-                    Label {
-                        Text("Done — \(done.count)")
-                    } icon: {
-                        Image(systemName: "checkmark.circle")
-                    }
+                ForEach(events) { event in
+                    TodayDoseCard(event: event, isOverdue: overdue)
                 }
             }
         }
-        .listStyle(.insetGrouped)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 22) {
+            MVEmptyState(
+                systemImage: "moon.zzz.fill",
+                title: "Nothing Scheduled",
+                message: "Add medicines and their schedule in the Medicines tab."
+            )
+            Label("Add medicines from the Medicines tab", systemImage: "arrow.down")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(Color.mvAccent)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 34)
+        .glassCard()
     }
 
     private func generateTodayEventsIfNeeded() {
@@ -122,30 +190,21 @@ struct TodayView: View {
             }
         }
     }
-
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("Nothing Scheduled", systemImage: "moon.zzz")
-        } description: {
-            Text("Add medicines and their schedule in the Medicines tab.")
-        }
-    }
 }
-
-// MARK: - Progress Card
 
 private struct ProgressCard: View {
     let taken: Int
     let total: Int
     let progress: Double
     @Environment(\.locale) private var locale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var allDone: Bool { taken == total }
+    private var allDone: Bool { total > 0 && taken == total }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(
                         allDone
                             ? AppLanguage.localized("All done!", locale: locale)
@@ -155,7 +214,9 @@ private struct ProgressCard: View {
                                 arguments: [taken, total]
                             )
                     )
-                        .font(.headline)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(Color.mvInk)
+
                     Text(
                         allDone
                             ? AppLanguage.localized("Great job keeping up with your medicines.", locale: locale)
@@ -165,123 +226,132 @@ private struct ProgressCard: View {
                                 arguments: [total - taken]
                             )
                     )
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.mvSubtle)
                 }
-                Spacer()
+
+                Spacer(minLength: 8)
+
                 ZStack {
                     Circle()
-                        .stroke(Color(.systemFill), lineWidth: 5)
+                        .stroke(Color.mvBorder.opacity(0.45), lineWidth: 7)
                     Circle()
                         .trim(from: 0, to: progress)
-                        .stroke(allDone ? Color.green : Color.blue, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                        .stroke(
+                            allDone ? Color.mvSuccess : Color.mvAccent,
+                            style: StrokeStyle(lineWidth: 7, lineCap: .round)
+                        )
                         .rotationEffect(.degrees(-90))
-                        .animation(.easeOut(duration: 0.4), value: progress)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.5), value: progress)
                     Text("\(Int(progress * 100))%")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
+                        .font(.caption.weight(.bold))
                         .monospacedDigit()
+                        .foregroundStyle(Color.mvInk)
                 }
-                .frame(width: 52, height: 52)
+                .frame(width: 64, height: 64)
+                .accessibilityLabel(Text("Daily progress"))
+                .accessibilityValue(
+                    AppLanguage.localized(
+                        "percent_format",
+                        locale: locale,
+                        arguments: [Int(progress * 100)]
+                    )
+                )
             }
 
-            ProgressView(value: progress)
-                .tint(allDone ? .green : .blue)
-                .animation(.easeOut(duration: 0.4), value: progress)
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.mvBorder.opacity(0.35))
+                    Capsule()
+                        .fill(allDone ? Color.mvSuccess : Color.mvAccent)
+                        .frame(width: proxy.size.width * progress)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.5), value: progress)
+                }
+            }
+            .frame(height: 8)
+            .accessibilityHidden(true)
         }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(18)
+        .glassCard()
     }
 }
 
-// MARK: - Row
-
-struct TodayDoseRow: View {
+private struct TodayDoseCard: View {
     let event: DoseEvent
     let isOverdue: Bool
     @Environment(\.locale) private var locale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Group {
-                            if let medicineName = event.medicine?.name {
-                                Text(verbatim: medicineName)
-                            } else {
-                                Text("Unknown")
-                            }
-                        }
-                        .font(.title3)
-                        .fontWeight(.semibold)
-
-                        if isOverdue {
-                            Text("Overdue")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.red.opacity(0.15))
-                                .foregroundStyle(.red)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                        }
-                    }
-                    if let dosage = event.medicine?.dosage, !dosage.isEmpty {
-                        Text(dosage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Text(
-                    event.scheduledTime,
-                    format: Date.FormatStyle(date: .omitted, time: .shortened)
-                        .locale(locale)
+        VStack(spacing: 13) {
+            HStack(spacing: 13) {
+                MVMedicineThumbnail(
+                    photoData: event.medicine?.photoData,
+                    form: event.medicine?.form ?? .other,
+                    size: 46
                 )
-                    .font(.headline)
-                    .monospacedDigit()
-                    .foregroundStyle(isOverdue ? .red : .secondary)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(event.medicine?.name ?? AppLanguage.localized("Unknown", locale: locale))
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(Color.mvInk)
+                        .lineLimit(1)
+
+                    HStack(spacing: 5) {
+                        if let dosage = event.medicine?.dosage, !dosage.isEmpty {
+                            Text(dosage)
+                            Text("·")
+                        }
+                        Text(
+                            event.scheduledTime,
+                            format: Date.FormatStyle(date: .omitted, time: .shortened)
+                                .locale(locale)
+                        )
+                        .monospacedDigit()
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(isOverdue ? Color.mvDanger : Color.mvSubtle)
+                }
+
+                Spacer()
+
+                if event.status == .pending {
+                    Image(systemName: "circle")
+                        .font(.system(size: 25, weight: .medium))
+                        .foregroundStyle(isOverdue ? Color.mvDanger : Color.mvBorder)
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: event.status.systemImage)
+                        .font(.system(size: 25, weight: .semibold))
+                        .foregroundStyle(event.status.color)
+                        .accessibilityHidden(true)
+                }
             }
 
             if event.status == .pending {
                 HStack(spacing: 10) {
-                    Button { event.status = .omitted } label: {
+                    Button {
+                        event.status = .omitted
+                        event.takenTime = nil
+                    } label: {
                         Text("Skip")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color(.secondarySystemGroupedBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(MVSecondaryButtonStyle(tint: .mvSubtle))
 
                     Button {
                         event.status = .complete
                         event.takenTime = Date()
                     } label: {
                         Label("Take Now", systemImage: "checkmark")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(isOverdue ? Color.red : Color.green)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(MVSecondaryButtonStyle(tint: isOverdue ? .mvDanger : .mvSuccess))
                 }
             } else {
                 HStack {
-                    Label {
-                        Text(LocalizedStringKey(event.status.localizationKey))
-                    } icon: {
-                        Image(systemName: event.status.systemImage)
-                    }
-                        .font(.subheadline)
-                        .foregroundStyle(event.status.color)
+                    MVStatusBadge(
+                        title: LocalizedStringKey(event.status.localizationKey),
+                        systemImage: event.status.systemImage,
+                        tint: event.status.color
+                    )
                     if let takenTime = event.takenTime, event.status == .complete {
                         Text(
                             AppLanguage.localized(
@@ -295,25 +365,26 @@ struct TodayDoseRow: View {
                                 ]
                             )
                         )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        .font(.caption)
+                        .foregroundStyle(Color.mvSubtle)
                     }
                     Spacer()
+                    Button {
+                        event.status = .pending
+                        event.takenTime = nil
+                    } label: {
+                        Label("Undo", systemImage: "arrow.uturn.backward")
+                            .labelStyle(.iconOnly)
+                            .frame(width: 36, height: 36)
+                    }
+                    .foregroundStyle(Color.mvAccent)
+                    .accessibilityLabel("Undo")
                 }
             }
         }
-        .padding(.vertical, 4)
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if event.status != .pending {
-                Button {
-                    event.status = .pending
-                    event.takenTime = nil
-                } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
-                }
-                .tint(.indigo)
-            }
-        }
+        .padding(15)
+        .glassCard()
+        .accessibilityElement(children: .contain)
     }
 }
 

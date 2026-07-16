@@ -19,19 +19,34 @@ struct MedicineDetailView: View {
     }
 
     var body: some View {
-        List {
-            photoSection
-            detailsSection
-            scheduleSection
-            historySection
-            deleteSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                hero
+                detailsCard
+                scheduleCard
+                historyCard
+
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Label("Delete Medicine", systemImage: "trash")
+                }
+                .buttonStyle(MVSecondaryButtonStyle(tint: .mvDanger))
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 30)
         }
-        .listStyle(.insetGrouped)
+        .scrollIndicators(.hidden)
+        .mvScreenBackground()
         .navigationTitle(medicine.name)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Edit") { showEdit = true }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.mvAccent)
             }
         }
         .sheet(isPresented: $showEdit) {
@@ -56,105 +71,146 @@ struct MedicineDetailView: View {
         }
     }
 
-    // MARK: - Sections
-
-    @ViewBuilder
-    private var photoSection: some View {
-        if let data = medicine.photoData, let image = UIImage(data: data) {
-            Section {
+    private var hero: some View {
+        VStack(spacing: 14) {
+            if let data = medicine.photoData, let image = UIImage(data: data) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: .infinity)
-                    .frame(height: 200)
-                    .clipped()
-                    .listRowInsets(EdgeInsets())
+                    .frame(height: 190)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .stroke(Color.mvBorder.opacity(0.5), lineWidth: 1)
+                    }
+            } else {
+                MVMedicineThumbnail(photoData: nil, form: medicine.form, size: 92)
+                    .padding(.top, 10)
+            }
+
+            VStack(spacing: 5) {
+                Text(medicine.name)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.mvInk)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 5) {
+                    if !medicine.dosage.isEmpty {
+                        Text(medicine.dosage)
+                        Text("·")
+                    }
+                    Text(LocalizedStringKey(medicine.form.localizationKey))
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.mvSubtle)
             }
         }
+        .frame(maxWidth: .infinity)
     }
 
-    private var detailsSection: some View {
-        Section("Details") {
+    private var detailsCard: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            MVSectionHeader(title: "Details", systemImage: "list.bullet.rectangle")
             if !medicine.dosage.isEmpty {
-                LabeledContent("Dosage", value: medicine.dosage)
+                detailRow(label: "Dosage", value: medicine.dosage, systemImage: "scalemass.fill")
             }
+            detailRow(
+                label: "Form",
+                value: AppLanguage.localized(medicine.form.localizationKey, locale: locale),
+                systemImage: medicine.form.systemImage
+            )
             if let barcode = medicine.barcode, !barcode.isEmpty {
-                LabeledContent("Barcode") {
-                    Text(barcode)
-                        .textSelection(.enabled)
-                }
-            }
-            LabeledContent {
-                Text(LocalizedStringKey(medicine.form.localizationKey))
-            } label: {
-                Text("Form")
+                detailRow(label: "Barcode", value: barcode, systemImage: "barcode")
+                    .textSelection(.enabled)
             }
             if !medicine.notes.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
+                Divider().overlay(Color.mvBorder.opacity(0.45))
+                VStack(alignment: .leading, spacing: 5) {
                     Text("Notes")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.mvSubtle)
                     Text(medicine.notes)
+                        .font(.body)
+                        .foregroundStyle(Color.mvInk)
                 }
-                .padding(.vertical, 2)
             }
         }
+        .padding(17)
+        .glassCard()
     }
 
-    @ViewBuilder
-    private var scheduleSection: some View {
-        if !medicine.scheduledTimes.isEmpty {
-            Section("Reminder Schedule") {
+    private var scheduleCard: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            MVSectionHeader(title: "Reminder Schedule", systemImage: "bell.fill")
+
+            if medicine.scheduledTimes.isEmpty {
+                Label("No reminders set", systemImage: "bell.slash.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.mvSubtle)
+                Button("Add Schedule") { showEdit = true }
+                    .buttonStyle(MVSecondaryButtonStyle())
+            } else {
                 if !medicine.frequencyNote.isEmpty {
-                    Label(medicine.frequencyNote, systemImage: "info.circle")
-                        .foregroundStyle(.secondary)
+                    Label(medicine.frequencyNote, systemImage: "info.circle.fill")
                         .font(.subheadline)
+                        .foregroundStyle(Color.mvSubtle)
                 }
                 ForEach(medicine.scheduledTimes.sorted(), id: \.self) { time in
-                    Label(
-                        time.formatted(
-                            Date.FormatStyle(date: .omitted, time: .shortened)
+                    HStack {
+                        MVIconTile(systemImage: "bell.fill", tint: .mvAccent, size: 38)
+                        Text(
+                            time,
+                            format: Date.FormatStyle(date: .omitted, time: .shortened)
                                 .locale(locale)
-                        ),
-                        systemImage: "bell"
-                    )
+                        )
+                        .font(.headline)
+                        .monospacedDigit()
+                        .foregroundStyle(Color.mvInk)
+                        Spacer()
+                    }
                 }
             }
-        } else {
-            Section("Reminder Schedule") {
-                Label("No reminders set", systemImage: "bell.slash")
-                    .foregroundStyle(.secondary)
-                Button("Add Schedule") { showEdit = true }
-            }
         }
+        .padding(17)
+        .glassCard()
     }
 
     @ViewBuilder
-    private var historySection: some View {
+    private var historyCard: some View {
         if !recentEvents.isEmpty {
-            Section("Last 14 Days") {
-                ForEach(recentEvents) { event in
-                    DoseEventRow(event: event)
+            VStack(alignment: .leading, spacing: 4) {
+                MVSectionHeader(title: "Last 14 Days", systemImage: "clock.arrow.circlepath")
+                    .padding(.bottom, 6)
+                ForEach(Array(recentEvents.enumerated()), id: \.element.id) { index, event in
+                    DoseEventRow(event: event, showMedicineName: false)
+                    if index < recentEvents.count - 1 {
+                        Divider().overlay(Color.mvBorder.opacity(0.45))
+                    }
                 }
             }
+            .padding(17)
+            .glassCard()
         }
     }
 
-    private var deleteSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showDeleteConfirm = true
-            } label: {
-                Label("Delete Medicine", systemImage: "trash")
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
+    private func detailRow(label: LocalizedStringKey, value: String, systemImage: String) -> some View {
+        HStack(spacing: 12) {
+            MVIconTile(systemImage: systemImage, tint: .mvAccent, size: 38)
+            Text(label)
+                .foregroundStyle(Color.mvInk)
+            Spacer()
+            Text(value)
+                .foregroundStyle(Color.mvSubtle)
+                .multilineTextAlignment(.trailing)
         }
+        .font(.body)
+        .accessibilityElement(children: .combine)
     }
 }
 
 #Preview {
     NavigationStack {
-        MedicineDetailView(medicine: Medicine(name: "Paracetamol", dosage: "500mg", form: .tablet))
+        MedicineDetailView(medicine: Medicine(name: "Paracetamol", dosage: "500 mg", form: .tablet))
     }
     .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
 }

@@ -4,6 +4,7 @@ import SwiftUI
 struct AuthView: View {
     @Bindable var viewModel: AuthViewModel
     @Environment(AuthService.self) private var auth
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView {
@@ -11,7 +12,7 @@ struct AuthView: View {
                 VStack(spacing: 10) {
                     ZStack {
                         Circle()
-                            .fill(Color.white.opacity(0.55))
+                            .fill(Color.mvSurface.opacity(colorScheme == .dark ? 0.68 : 0.72))
                             .frame(width: 92, height: 92)
 
                         Image(systemName: "pills.fill")
@@ -52,7 +53,7 @@ struct AuthView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .tint(.black)
+                .tint(Color.mvAccent)
                 .accessibilityLabel(Text("Sign in or create account"))
                 .disabled(viewModel.isLoading)
                 .padding(4)
@@ -100,20 +101,26 @@ struct AuthView: View {
                 } label: {
                     ZStack {
                         Text(viewModel.primaryButtonTitle)
-                            .font(.title3)
-                            .foregroundColor(.black)
+                            .font(.headline)
+                            .foregroundStyle(Color.mvOnAccent)
                             .fontWeight(.semibold)
                             .opacity(viewModel.isLoading ? 0 : 1)
                         if viewModel.isLoading {
                             ProgressView()
-                                .tint(.black)
+                                .tint(Color.mvOnAccent)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(minHeight: 52)
-                    .background(Color.white)
-                    .foregroundStyle(.black)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .frame(minHeight: 60)
+                    .padding(.horizontal, 8)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.mvAccentGradientStart, Color.mvAccentGradientEnd],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.isLoading || !auth.isConfigured)
@@ -134,21 +141,14 @@ struct AuthView: View {
                 }
 
                 VStack(spacing: 8) {
-                    ZStack {
-                        SignInWithAppleButton(.signIn) { request in
-                            request.requestedScopes = [.email, .fullName]
-                        } onCompletion: { result in
-                            Task { await viewModel.handleAppleResult(result) }
-                        }
-                        .signInWithAppleButtonStyle(.white)
-                        .opacity(0.02)
-
-                        SignInOptionLabel(
-                            title: "Sign in with Apple",
-                            icon: "apple.logo"
-                        )
-                        .allowsHitTesting(false)
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.email, .fullName]
+                    } onCompletion: { result in
+                        Task { await viewModel.handleAppleResult(result) }
                     }
+                    .signInWithAppleButtonStyle(colorScheme == .dark ? .whiteOutline : .white)
+                    .frame(maxWidth: .infinity, minHeight: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .modifier(SignInOptionStyle(
                         isDisabled: viewModel.isLoading || !auth.isConfigured
                     ))
@@ -160,7 +160,7 @@ struct AuthView: View {
                     } label: {
                         SignInOptionLabel(
                             title: "Continue with Google",
-                            icon: "g.circle.fill"
+                            icon: .system("g.circle.fill")
                         )
                     }
                     .buttonStyle(.plain)
@@ -175,7 +175,7 @@ struct AuthView: View {
                     } label: {
                         SignInOptionLabel(
                             title: "Continue as Guest",
-                            icon: "person.crop.circle.fill"
+                            icon: .system("person.crop.circle.fill")
                         )
                     }
                     .buttonStyle(.plain)
@@ -186,7 +186,7 @@ struct AuthView: View {
 
                 Text("You’ll stay signed in on this phone until you sign out.")
                     .font(.caption)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(Color.mvSubtle)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .padding(.bottom, 8)
@@ -221,14 +221,11 @@ struct AuthView: View {
             }
             .textContentType(contentType)
             .font(.body)
+            .foregroundStyle(Color.mvInk)
+            .tint(Color.mvAccent)
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(Color.white.opacity(0.85))
-            .overlay {
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.mvBorder, lineWidth: 1.5)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .modifier(AuthRectangleStyle(cornerRadius: 14))
             .accessibilityLabel(Text(title))
         }
     }
@@ -253,19 +250,31 @@ struct AuthView: View {
 
 private struct SignInOptionLabel: View {
     let title: LocalizedStringKey
-    let icon: String
+    let icon: SignInOptionIcon
+
+    enum SignInOptionIcon {
+        case system(String)
+    }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .medium))
-                .frame(width: 26, alignment: .center)
+            HStack(spacing: 10) {
+                iconView
+                    .frame(width: 26, height: 26, alignment: .center)
 
             Text(title)
-                .font(.headline)
+                .font(.system(size: 15, weight: .semibold))
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .foregroundStyle(Color.mvInk)
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        switch icon {
+        case .system(let name):
+            Image(systemName: name)
+                .font(.system(size: 20, weight: .medium))
+        }
     }
 }
 
@@ -277,12 +286,29 @@ private struct SignInOptionStyle: ViewModifier {
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .foregroundStyle(Color.mvInk)
-            .background(Color.white)
-            .overlay {
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .modifier(AuthRectangleStyle(cornerRadius: 18))
             .opacity(isDisabled ? 0.5 : 1)
+    }
+}
+
+private struct AuthRectangleStyle: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                Color.mvSurface.opacity(colorScheme == .dark ? 0.68 : 0.72),
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+            .background(
+                .ultraThinMaterial,
+                in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.mvBorder.opacity(0.65), lineWidth: 1)
+            }
+            .shadow(color: Color.mvAccent.opacity(0.12), radius: 14, x: 0, y: 8)
     }
 }
