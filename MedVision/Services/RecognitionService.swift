@@ -274,7 +274,7 @@ struct RecognitionService {
         imageData: Data,
         onStage: ((RecognitionStage) -> Void)? = nil
     ) async throws -> RecognizedMedicine {
-        let rawText: String
+        var rawText: String
         do {
             rawText = try await performOCR(imageData: imageData)
         } catch let error as RecognitionError {

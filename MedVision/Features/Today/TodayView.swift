@@ -1,11 +1,13 @@
 import SwiftUI
 import SwiftData
+import Auth
 
 struct TodayView: View {
     @Query(sort: \DoseEvent.scheduledTime) private var allEvents: [DoseEvent]
     @Query private var allMedicines: [Medicine]
     @Environment(\.modelContext) private var context
     @Environment(\.locale) private var locale
+    @Environment(AuthService.self) private var auth
 
     private var todayEvents: [DoseEvent] {
         allEvents.filter { Calendar.current.isDateInToday($0.scheduledTime) }
@@ -29,7 +31,11 @@ struct TodayView: View {
                 }
             }
             .navigationTitle("Today")
-            .task { generateTodayEventsIfNeeded() }
+            .task {
+                DoseSyncService.mirrorMissedStatuses(events: Array(allEvents))
+                generateTodayEventsIfNeeded()
+                await syncTodayToCloud()
+            }
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 0) {
@@ -123,6 +129,12 @@ struct TodayView: View {
         }
     }
 
+    private func syncTodayToCloud() async {
+        guard !auth.isGuest else { return }
+        let token = auth.session?.accessToken
+        await DoseSyncService.syncEvents(todayEvents, accessToken: token)
+    }
+
     private var emptyState: some View {
         ContentUnavailableView {
             Label("Nothing Scheduled", systemImage: "moon.zzz")
@@ -201,6 +213,7 @@ struct TodayDoseRow: View {
     let event: DoseEvent
     let isOverdue: Bool
     @Environment(\.locale) private var locale
+    @Environment(AuthService.self) private var auth
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -247,7 +260,10 @@ struct TodayDoseRow: View {
 
             if event.status == .pending {
                 HStack(spacing: 10) {
-                    Button { event.status = .omitted } label: {
+                    Button {
+                        event.status = .omitted
+                        Task { await syncDose() }
+                    } label: {
                         Text("Skip")
                             .font(.subheadline)
                             .fontWeight(.medium)
@@ -261,6 +277,7 @@ struct TodayDoseRow: View {
                     Button {
                         event.status = .complete
                         event.takenTime = Date()
+                        Task { await syncDose() }
                     } label: {
                         Label("Take Now", systemImage: "checkmark")
                             .font(.subheadline)
@@ -308,6 +325,7 @@ struct TodayDoseRow: View {
                 Button {
                     event.status = .pending
                     event.takenTime = nil
+                    Task { await syncDose() }
                 } label: {
                     Label("Undo", systemImage: "arrow.uturn.backward")
                 }
@@ -315,9 +333,15 @@ struct TodayDoseRow: View {
             }
         }
     }
+
+    private func syncDose() async {
+        guard !auth.isGuest else { return }
+        await DoseSyncService.syncEvent(event, accessToken: auth.session?.accessToken)
+    }
 }
 
 #Preview {
     TodayView()
+        .environment(AuthService())
         .modelContainer(for: [Medicine.self, DoseEvent.self], inMemory: true)
 }

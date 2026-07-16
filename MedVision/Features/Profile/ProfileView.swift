@@ -90,6 +90,8 @@ struct ProfileView: View {
 
                     mealTimesCard
 
+                    CaregiverAlertsCard()
+
                     infoCard(title: "Account", items: [
                         ("envelope.fill", Color.orange, "Email", accountEmail),
                         ("phone.fill", Color.green, "Phone", phone.isEmpty ? "—" : phone),

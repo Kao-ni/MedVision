@@ -193,6 +193,14 @@
 "Centre the label inside the frame" = "จัดให้อยู่ตรงชื่อยา หลีกเลี่ยงส่วนหัวชื่อผู้ป่วย ชื่อและอายุจะถูกลบก่อนประมวลผล";
 "Centre the barcode inside the frame" = "จัดบาร์โค้ดให้อยู่กลางกรอบ";
 "Patient name and age on labels are removed before processing." = "ชื่อและอายุผู้ป่วยบนฉลากจะถูกลบก่อนประมวลผล";
+"Caregiver LINE alerts" = "แจ้งเตือนผู้ดูแลผ่าน LINE";
+"Caregiver connected" = "เชื่อมต่อผู้ดูแลแล้ว";
+"No caregiver linked" = "ยังไม่ได้เชื่อมผู้ดูแล";
+"Generate invite code" = "สร้างรหัสเชิญ";
+"Replace caregiver" = "เปลี่ยนผู้ดูแล";
+"Unlink" = "ยกเลิกการเชื่อมต่อ";
+"Sign in to enable caregiver LINE alerts. Guest mode stays on this device only." = "เข้าสู่ระบบเพื่อเปิดแจ้งเตือน LINE สำหรับผู้ดูแล โหมดผู้เยี่ยมชมเก็บข้อมูลบนเครื่องเท่านั้น";
+"If a dose is not taken within 30 minutes, your linked caregiver gets one LINE message (medicine name and time only — not photos)." = "หากไม่ทานยาภายใน 30 นาที ผู้ดูแลที่เชื่อม LINE จะได้รับข้อความหนึ่งครั้ง (ชื่อยาและเวลาเท่านั้น — ไม่ส่งรูป)";
 "Scanning label..." = "กำลังสแกนฉลาก...";
 "Reading label..." = "กำลังอ่านฉลาก...";
 "Checking medicine lists..." = "กำลังตรวจสอบรายการยา...";
