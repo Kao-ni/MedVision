@@ -196,6 +196,8 @@ struct RecognitionService {
         let notes = stringValue(parsed["notes"])
         let form = mapForm(stringValue(parsed["form"]))
         let warnings = (parsed["warnings"] as? [String]) ?? []
+        let scheduleHint = parseScheduleHint(from: parsed)
+        let fieldConfidence = parseFieldConfidence(from: parsed)
         let resolution = parseResolution(from: json["resolution"] as? [String: Any], judgeSkipped: json["judgeSkipped"] as? Bool ?? false)
 
         var result = RecognizedMedicine(
@@ -204,8 +206,8 @@ struct RecognitionService {
             form: form,
             notes: notes,
             photoData: photoData,
-            scheduleHint: nil,
-            fieldConfidence: MedicineFieldConfidence(),
+            scheduleHint: scheduleHint,
+            fieldConfidence: fieldConfidence,
             warnings: warnings,
             resolution: resolution
         )
