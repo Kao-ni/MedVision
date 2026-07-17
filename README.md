@@ -6,7 +6,7 @@
 
 # Welcome to MedVision 💊
 
-### Snap a packet. Confirm the details. Never miss a dose.
+### Snap a packet, Confirm the details, Never miss a dose!
 
 <br/>
 
