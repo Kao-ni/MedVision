@@ -10,6 +10,7 @@ struct MedVisionApp: App {
 
     init() {
         UserDefaults.standard.removeObject(forKey: Self.legacyBloodTypeKey)
+        NotificationService.shared.configure()
     }
 
     var body: some Scene {
@@ -18,10 +19,13 @@ struct MedVisionApp: App {
                 .environment(authService)
                 .environment(
                     \.locale,
-                    Locale(identifier: AppLanguage.code(for: displayLanguage))
+                    AppLanguage.locale(for: displayLanguage)
                 )
                 .onOpenURL { url in
                     authService.handleOpenURL(url)
+                }
+                .onChange(of: displayLanguage) { _, _ in
+                    NotificationService.shared.configure()
                 }
         }
         .modelContainer(Self.container)

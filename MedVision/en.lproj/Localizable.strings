@@ -59,6 +59,7 @@
 "Great job keeping up with your medicines." = "Great job keeping up with your medicines.";
 "Unknown" = "Unknown";
 "Skip" = "Skip";
+"Snooze 10 min" = "Snooze 10 min";
 "Take Now" = "Take Now";
 "Undo" = "Undo";
 "Taken" = "Taken";
@@ -148,7 +149,6 @@
 "None" = "None";
 "Account" = "Account";
 "Email" = "Email";
-"Phone" = "Phone";
 "Personal" = "Personal";
 "Health" = "Health";
 "Contact" = "Contact";
@@ -166,7 +166,9 @@
 "Time to take your medicine." = "Time to take your medicine.";
 
 "progress_taken_format" = "%d of %d taken today";
+"progress_taken_day_format" = "%d of %d taken";
 "progress_remaining_format" = "%d dose(s) remaining";
+"day_progress_accessibility_format" = "%d of %d doses completed";
 "percent_format" = "%d percent";
 "taken_at_format" = "at %@";
 "scheduled_accessibility_format" = "%@scheduled %@";
@@ -177,6 +179,14 @@
 "ocr_status_error_format" = "OCR request failed with status %d.";
 "parse_status_error_format" = "Parse request failed with status %d.";
 "time_to_take_dosage_format" = "Time to take %@.";
+"snooze_set_format" = "Reminder set for %@";
+"Couldn't schedule reminder" = "Couldn't schedule reminder";
+"Notifications are disabled. Enable them in Settings to snooze a dose." = "Notifications are disabled. Enable them in Settings to snooze a dose.";
+"The reminder couldn't be scheduled. Please try again." = "The reminder couldn't be scheduled. Please try again.";
+"Schedules another reminder in 10 minutes" = "Schedules another reminder in 10 minutes";
+"OK" = "OK";
+"today_date_format" = "Today, %@";
+"selected_date_format" = "%@, %@";
 
 /* Auth */
 "Welcome to MedVision" = "Welcome to MedVision";
@@ -216,9 +226,7 @@
 /* Scan */
 "Label" = "Label";
 "Barcode" = "Barcode";
-"Centre the label inside the frame" = "Centre the drug name; avoid the patient header. Names and ages are removed before processing.";
 "Centre the barcode inside the frame" = "Centre the barcode inside the frame";
-"Patient name and age on labels are removed before processing." = "Patient name and age on labels are removed before processing.";
 "Caregiver LINE alerts" = "Caregiver LINE alerts";
 "Caregiver connected" = "Caregiver connected";
 "No caregiver linked" = "No caregiver linked";

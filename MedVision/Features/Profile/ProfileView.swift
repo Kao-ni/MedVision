@@ -11,7 +11,6 @@ struct ProfileView: View {
     @AppStorage("profile_allergies") private var allergies = "None"
     @AppStorage("profile_conditions") private var conditions = "None"
     @AppStorage("profile_medications") private var medications = "None"
-    @AppStorage("profile_phone") private var phone = ""
     @AppStorage("profile_photoDataBase64") private var profilePhotoDataBase64 = ""
     @AppStorage(AppLanguage.storageKey) private var displayLanguage = "en"
     @AppStorage(UserMealTimes.breakfastKey) private var breakfastSeconds = UserMealTimes.defaultBreakfast
@@ -75,8 +74,7 @@ struct ProfileView: View {
                     CaregiverAlertsCard()
 
                     infoCard(title: "Account", items: [
-                        ProfileInfoItem(icon: "envelope.fill", tint: .mvAccent, label: "Email", value: accountEmail),
-                        ProfileInfoItem(icon: "phone.fill", tint: .mvSuccess, label: "Phone", value: phone.isEmpty ? "—" : phone)
+                        ProfileInfoItem(icon: "envelope.fill", tint: .mvAccent, label: "Email", value: accountEmail)
                     ])
 
                     if let signOutError {
@@ -119,7 +117,6 @@ struct ProfileView: View {
                     allergies: $allergies,
                     conditions: $conditions,
                     medications: $medications,
-                    phone: $phone,
                     accountEmail: accountEmail
                 )
             }
@@ -448,7 +445,6 @@ struct EditProfileSheet: View {
     @Binding var allergies: String
     @Binding var conditions: String
     @Binding var medications: String
-    @Binding var phone: String
     let accountEmail: String
 
     @Environment(\.dismiss) private var dismiss
@@ -506,8 +502,6 @@ struct EditProfileSheet: View {
 
                 Section("Contact") {
                     LabeledContent("Email", value: accountEmail)
-                    TextField("Phone", text: $phone)
-                        .keyboardType(.phonePad)
                 }
             }
             .scrollContentBackground(.hidden)

@@ -94,7 +94,10 @@ struct RecognitionService {
                     accessToken: token,
                     onStage: onStage
                 )
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
+                try Task.checkCancellation()
                 // Fall through to client OCR + local consensus when edge function is unreachable.
                 if PrototypeOCRConfig.isConfigured {
                     onStage?(.readingLabel)
@@ -132,7 +135,7 @@ struct RecognitionService {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
-        request.timeoutInterval = 180
+        request.timeoutInterval = 60
 
         var body = Data()
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
@@ -148,6 +151,8 @@ struct RecognitionService {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw RecognitionError.networkError(error)
         }
@@ -277,6 +282,8 @@ struct RecognitionService {
         var rawText: String
         do {
             rawText = try await performOCR(imageData: imageData)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch let error as RecognitionError {
             throw error
         } catch {
@@ -288,6 +295,8 @@ struct RecognitionService {
         let structuredJSON: String
         do {
             structuredJSON = try await structureMedicineData(from: rawText)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch let error as RecognitionError {
             throw error
         } catch {
@@ -340,7 +349,7 @@ struct RecognitionService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 60
+        request.timeoutInterval = 20
 
         let prompt = """
         You are a medicine-label arbitrator for a reminder app used in Thailand.
@@ -420,7 +429,7 @@ struct RecognitionService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 120
+        request.timeoutInterval = 45
 
         let body: [String: Any] = [
             "model": PrototypeOCRConfig.model,
@@ -471,7 +480,7 @@ struct RecognitionService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(PrototypeOCRConfig.apiKey)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 120
+        request.timeoutInterval = 30
 
         let prompt = """
         You are the medicine extraction engine for MedTrack, a personal medication-reminder app.

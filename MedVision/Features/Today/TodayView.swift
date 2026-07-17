@@ -59,7 +59,7 @@ struct TodayView: View {
     }
 
     private var trackerDates: [Date] {
-        WeeklyDoseTrackerLogic.mondayWeek(containing: windowReferenceDate)
+        WeeklyDoseTrackerLogic.centeredWeek(containing: windowReferenceDate)
     }
 
     private var dailySummaries: [Date: DailyDoseSummary] {
@@ -139,6 +139,9 @@ struct TodayView: View {
                     DoseEventWindowScheduler.ensureCurrentWindow(
                         medicines: Array(allMedicines),
                         in: context
+                    )
+                    await NotificationService.shared.refreshExistingRemindersIfNeeded(
+                        medicines: Array(allMedicines)
                     )
                     await syncTodayToCloud()
                 }
@@ -297,7 +300,14 @@ struct TodayView: View {
             }
         }
 
-        Task { await syncDoseEvents(events) }
+        Task {
+            if shouldComplete {
+                for event in events {
+                    NotificationService.shared.cancelSnooze(for: event)
+                }
+            }
+            await syncDoseEvents(events)
+        }
     }
 
     private func syncTodayToCloud() async {
@@ -399,6 +409,29 @@ private struct ProgressCard: View {
     }
 }
 
+private struct DosePrimaryActionStyle: ButtonStyle {
+    let tint: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+
+        configuration.label
+            .font(.system(size: 16, weight: .bold))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .foregroundStyle(Color.white)
+            .background(tint, in: shape)
+            .shadow(
+                color: tint.opacity(0.2),
+                radius: 7,
+                x: 0,
+                y: 3
+            )
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .contentShape(shape)
+    }
+}
+
 private struct TodayDoseCard: View {
     let event: DoseEvent
     let isOverdue: Bool
@@ -407,12 +440,20 @@ private struct TodayDoseCard: View {
     @Environment(AuthService.self) private var auth
     @State private var showTakenTimePicker = false
     @State private var draftTakenTime = Date.now
+    @State private var snoozeConfirmation: String?
+    @State private var snoozeErrorMessage = ""
+    @State private var showSnoozeError = false
 
     private var calendar: Calendar { .current }
     private var selectedDayStart: Date { calendar.startOfDay(for: selectedDate) }
     private var todayStart: Date { calendar.startOfDay(for: .now) }
     private var isFutureDay: Bool { selectedDayStart > todayStart }
     private var isPastDay: Bool { selectedDayStart < todayStart }
+    private var canSnooze: Bool {
+        !isPastDay &&
+            !isFutureDay &&
+            (event.status == .pending || event.status == .missed)
+    }
 
     private var takenTimeRange: ClosedRange<Date> {
         let end = calendar.date(byAdding: .day, value: 1, to: selectedDayStart)?
@@ -479,8 +520,8 @@ private struct TodayDoseCard: View {
                         .foregroundStyle(Color.mvSubtle)
                         .multilineTextAlignment(.trailing)
                 }
-            } else if event.status == .complete {
-                completedStatusRow
+            } else if event.status == .complete || event.status == .omitted {
+                resolvedStatusRow
             } else {
                 actionButtons
             }
@@ -492,16 +533,21 @@ private struct TodayDoseCard: View {
             pastTakenTimeSheet
                 .presentationDetents([.medium])
         }
+        .alert("Couldn't schedule reminder", isPresented: $showSnoozeError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(snoozeErrorMessage)
+        }
     }
 
-    private var completedStatusRow: some View {
+    private var resolvedStatusRow: some View {
         HStack {
             MVStatusBadge(
                 title: LocalizedStringKey(event.status.localizationKey),
                 systemImage: event.status.systemImage,
                 tint: event.status.color
             )
-            if let takenTime = event.takenTime {
+            if event.status == .complete, let takenTime = event.takenTime {
                 Text(
                     AppLanguage.localized(
                         "taken_at_format",
@@ -524,25 +570,18 @@ private struct TodayDoseCard: View {
                 Task { await syncDose() }
             } label: {
                 Label("Undo", systemImage: "arrow.uturn.backward")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 36, height: 36)
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color.mvAccent.opacity(0.1), in: Capsule())
             }
+            .buttonStyle(.plain)
             .foregroundStyle(Color.mvAccent)
-            .accessibilityLabel("Undo")
         }
     }
 
     private var actionButtons: some View {
-        HStack(spacing: 10) {
-            Button {
-                event.status = .omitted
-                event.takenTime = nil
-                Task { await syncDose() }
-            } label: {
-                Text("Skip")
-            }
-            .buttonStyle(MVSecondaryButtonStyle(tint: .mvSubtle))
-
+        VStack(alignment: .leading, spacing: 9) {
             Button {
                 markTaken()
             } label: {
@@ -552,8 +591,64 @@ private struct TodayDoseCard: View {
                     Image(systemName: "checkmark")
                 }
             }
-            .buttonStyle(MVSecondaryButtonStyle(tint: isOverdue ? .mvDanger : .mvSuccess))
+            .buttonStyle(
+                DosePrimaryActionStyle(tint: isOverdue ? .mvDanger : .mvSuccess)
+            )
+
+            HStack(spacing: 0) {
+                if canSnooze {
+                    compactAction(
+                        "Snooze 10 min",
+                        systemImage: "clock.arrow.circlepath",
+                        tint: .mvAccent,
+                        action: snoozeDose
+                    )
+                    .accessibilityHint("Schedules another reminder in 10 minutes")
+
+                    Divider()
+                        .frame(height: 18)
+                        .overlay(Color.mvBorder.opacity(0.65))
+                }
+
+                compactAction(
+                    "Skip",
+                    systemImage: "forward.end.fill",
+                    tint: .mvSubtle
+                ) {
+                    snoozeConfirmation = nil
+                    event.status = .omitted
+                    event.takenTime = nil
+                    Task { await cancelSnoozeAndSync() }
+                }
+            }
+            .padding(.horizontal, 4)
+
+            if let snoozeConfirmation {
+                Label(snoozeConfirmation, systemImage: "bell.badge.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.mvAccent)
+                    .accessibilityLabel(snoozeConfirmation)
+            }
         }
+    }
+
+    private func compactAction(
+        _ title: LocalizedStringKey,
+        systemImage: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .foregroundStyle(tint)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 7)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var pastTakenTimeSheet: some View {
@@ -580,7 +675,8 @@ private struct TodayDoseCard: View {
                         event.status = .complete
                         event.takenTime = draftTakenTime
                         showTakenTimePicker = false
-                        Task { await syncDose() }
+                        snoozeConfirmation = nil
+                        Task { await cancelSnoozeAndSync() }
                     }
                     .fontWeight(.semibold)
                 }
@@ -596,8 +692,43 @@ private struct TodayDoseCard: View {
         } else {
             event.status = .complete
             event.takenTime = .now
-            Task { await syncDose() }
+            snoozeConfirmation = nil
+            Task { await cancelSnoozeAndSync() }
         }
+    }
+
+    private func snoozeDose() {
+        Task {
+            switch await NotificationService.shared.snooze(event) {
+            case .scheduled(let date):
+                let time = date.formatted(
+                    Date.FormatStyle(date: .omitted, time: .shortened)
+                        .locale(locale)
+                )
+                snoozeConfirmation = AppLanguage.localized(
+                    "snooze_set_format",
+                    locale: locale,
+                    arguments: [time]
+                )
+            case .notificationsDisabled:
+                snoozeErrorMessage = AppLanguage.localized(
+                    "Notifications are disabled. Enable them in Settings to snooze a dose.",
+                    locale: locale
+                )
+                showSnoozeError = true
+            case .failed:
+                snoozeErrorMessage = AppLanguage.localized(
+                    "The reminder couldn't be scheduled. Please try again.",
+                    locale: locale
+                )
+                showSnoozeError = true
+            }
+        }
+    }
+
+    private func cancelSnoozeAndSync() async {
+        NotificationService.shared.cancelSnooze(for: event)
+        await syncDose()
     }
 
     private func syncDose() async {

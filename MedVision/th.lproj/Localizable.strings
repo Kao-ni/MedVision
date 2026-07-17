@@ -59,6 +59,7 @@
 "Great job keeping up with your medicines." = "เยี่ยมมาก คุณทานยาครบตามกำหนด";
 "Unknown" = "ไม่ทราบ";
 "Skip" = "ข้าม";
+"Snooze 10 min" = "เตือนอีก 10 นาที";
 "Take Now" = "ทานตอนนี้";
 "Undo" = "ย้อนกลับ";
 "Taken" = "ทานแล้ว";
@@ -148,7 +149,6 @@
 "None" = "ไม่มี";
 "Account" = "บัญชี";
 "Email" = "อีเมล";
-"Phone" = "โทรศัพท์";
 "Personal" = "ข้อมูลส่วนตัว";
 "Health" = "สุขภาพ";
 "Contact" = "ข้อมูลติดต่อ";
@@ -166,7 +166,9 @@
 "Time to take your medicine." = "ถึงเวลาทานยาแล้ว";
 
 "progress_taken_format" = "ทานแล้ว %d จาก %d รายการวันนี้";
+"progress_taken_day_format" = "ทานแล้ว %d จาก %d รายการ";
 "progress_remaining_format" = "เหลืออีก %d รายการ";
+"day_progress_accessibility_format" = "ทานยาแล้ว %d จาก %d รายการ";
 "percent_format" = "%d เปอร์เซ็นต์";
 "taken_at_format" = "เวลา %@";
 "scheduled_accessibility_format" = "%@กำหนดเวลา %@";
@@ -177,6 +179,14 @@
 "ocr_status_error_format" = "การอ่านข้อมูลล้มเหลว รหัส %d";
 "parse_status_error_format" = "การแปลข้อมูลล้มเหลว รหัส %d";
 "time_to_take_dosage_format" = "ถึงเวลาทาน %@";
+"snooze_set_format" = "ตั้งเตือนอีกครั้งเวลา %@";
+"Couldn't schedule reminder" = "ไม่สามารถตั้งการแจ้งเตือนได้";
+"Notifications are disabled. Enable them in Settings to snooze a dose." = "การแจ้งเตือนถูกปิดอยู่ โปรดเปิดในการตั้งค่าเพื่อเลื่อนเตือนการทานยา";
+"The reminder couldn't be scheduled. Please try again." = "ไม่สามารถตั้งการแจ้งเตือนได้ โปรดลองอีกครั้ง";
+"Schedules another reminder in 10 minutes" = "ตั้งการแจ้งเตือนอีกครั้งใน 10 นาที";
+"OK" = "ตกลง";
+"today_date_format" = "วันนี้ %@";
+"selected_date_format" = "%@ %@";
 
 /* Auth */
 "Welcome to MedVision" = "ยินดีต้อนรับสู่ MedVision";
@@ -216,9 +226,7 @@
 /* Scan */
 "Label" = "ฉลาก";
 "Barcode" = "บาร์โค้ด";
-"Centre the label inside the frame" = "จัดให้อยู่ตรงชื่อยา หลีกเลี่ยงส่วนหัวชื่อผู้ป่วย ชื่อและอายุจะถูกลบก่อนประมวลผล";
 "Centre the barcode inside the frame" = "จัดบาร์โค้ดให้อยู่กลางกรอบ";
-"Patient name and age on labels are removed before processing." = "ชื่อและอายุผู้ป่วยบนฉลากจะถูกลบก่อนประมวลผล";
 "Caregiver LINE alerts" = "แจ้งเตือนผู้ดูแลผ่าน LINE";
 "Caregiver connected" = "เชื่อมต่อผู้ดูแลแล้ว";
 "No caregiver linked" = "ยังไม่ได้เชื่อมผู้ดูแล";

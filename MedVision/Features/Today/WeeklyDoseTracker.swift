@@ -22,21 +22,13 @@ struct DailyDoseSummary: Equatable {
 }
 
 enum WeeklyDoseTrackerLogic {
-    static func mondayWeek(
+    static func centeredWeek(
         containing referenceDate: Date,
         calendar: Calendar = .current
     ) -> [Date] {
         let today = calendar.startOfDay(for: referenceDate)
-        let weekday = calendar.component(.weekday, from: today)
-        let daysSinceMonday = (weekday + 5) % 7
-        guard let monday = calendar.date(
-            byAdding: .day,
-            value: -daysSinceMonday,
-            to: today
-        ) else { return [] }
-
-        return (0..<7).compactMap {
-            calendar.date(byAdding: .day, value: $0, to: monday)
+        return (-3...3).compactMap {
+            calendar.date(byAdding: .day, value: $0, to: today)
         }
     }
 

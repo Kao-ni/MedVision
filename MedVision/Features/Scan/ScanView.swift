@@ -42,6 +42,7 @@ struct ScanView: View {
     @State private var scannedBarcode: String?
     @State private var didCaptureBarcode = false
     @State private var barcodeUnlockTask: Task<Void, Never>?
+    @State private var recognitionTask: Task<Void, Never>?
     @State private var capturedPhotoData: Data?
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showPhotoPicker = false
@@ -55,7 +56,7 @@ struct ScanView: View {
                         ? nil
                         : recognitionStage.message,
                     selectedMode: $selectedMode,
-                    onClose: onClose,
+                    onClose: closeScanner,
                     onCapture: { image in
                         if selectedMode == .barcode {
                             handleBarcodeImage(image)
@@ -100,10 +101,15 @@ struct ScanView: View {
                 scanErrorMessage: ocrErrorMessage
             )
         }
+        .onDisappear {
+            cancelPendingWork()
+        }
     }
 
     private func handleCapture(_ image: UIImage) {
-        Task {
+        guard !isRecognizing else { return }
+        recognitionTask?.cancel()
+        recognitionTask = Task {
             await MainActor.run {
                 didCaptureBarcode = false
                 isRecognizing = true
@@ -123,10 +129,17 @@ struct ScanView: View {
                         recognitionStage = stage
                     }
                 }
+                try Task.checkCancellation()
                 await MainActor.run {
                     recognitionResult = result
                     ocrErrorMessage = nil
                 }
+            } catch is CancellationError {
+                await MainActor.run {
+                    isRecognizing = false
+                    recognitionStage = .idle
+                }
+                return
             } catch {
                 await MainActor.run {
                     recognitionResult = nil
@@ -135,6 +148,7 @@ struct ScanView: View {
                 }
             }
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 isRecognizing = false
                 recognitionStage = .idle
                 showAddMedicine = true
@@ -239,6 +253,20 @@ struct ScanView: View {
             didCaptureBarcode = false
         }
     }
+
+    private func closeScanner() {
+        cancelPendingWork()
+        onClose()
+    }
+
+    private func cancelPendingWork() {
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        barcodeUnlockTask?.cancel()
+        barcodeUnlockTask = nil
+        isRecognizing = false
+        recognitionStage = .idle
+    }
 }
 
 private struct ScannerFullScreenView: View {
@@ -320,7 +348,7 @@ private struct ScannerFullScreenView: View {
                     systemImage: "chevron.left",
                     size: 52,
                     isActive: false,
-                    isDisabled: isBusy,
+                    isDisabled: false,
                     action: onClose
                 )
 
@@ -342,10 +370,12 @@ private struct ScannerFullScreenView: View {
                     height: dimensions.height
                 )
 
-                TipBanner(
-                    text: camera.tipText(for: selectedMode),
-                    color: camera.tipColor
-                )
+                if let tipText = camera.tipText(for: selectedMode) {
+                    TipBanner(
+                        text: tipText,
+                        color: camera.tipColor
+                    )
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -408,9 +438,9 @@ private enum ScannerMode: String, CaseIterable {
         }
     }
 
-    var defaultTip: String {
+    var defaultTip: String? {
         switch self {
-        case .label: return AppLanguage.localized("Centre the label inside the frame")
+        case .label: return nil
         case .barcode: return AppLanguage.localized("Centre the barcode inside the frame")
         }
     }
@@ -601,7 +631,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         }
     }
 
-    func tipText(for mode: ScannerMode) -> String {
+    func tipText(for mode: ScannerMode) -> String? {
         switch tipState {
         case .default:
             return mode.defaultTip
