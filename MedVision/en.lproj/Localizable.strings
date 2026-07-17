@@ -31,6 +31,10 @@
 "Good afternoon" = "Good afternoon";
 "Good evening" = "Good evening";
 "Daily progress" = "Daily progress";
+"Morning" = "Morning";
+"Afternoon" = "Afternoon";
+"Night" = "Night";
+"No doses scheduled" = "No doses scheduled";
 "Add medicines from the Medicines tab" = "Add medicines from the Medicines tab";
 "Medicines" = "Medicines";
 "Manage doses and reminders in one place" = "Manage doses and reminders in one place";
@@ -55,6 +59,7 @@
 "Great job keeping up with your medicines." = "Great job keeping up with your medicines.";
 "Unknown" = "Unknown";
 "Skip" = "Skip";
+"Snooze 10 min" = "Snooze 10 min";
 "Take Now" = "Take Now";
 "Undo" = "Undo";
 "Taken" = "Taken";
@@ -144,7 +149,6 @@
 "None" = "None";
 "Account" = "Account";
 "Email" = "Email";
-"Phone" = "Phone";
 "Personal" = "Personal";
 "Health" = "Health";
 "Contact" = "Contact";
@@ -162,7 +166,9 @@
 "Time to take your medicine." = "Time to take your medicine.";
 
 "progress_taken_format" = "%d of %d taken today";
+"progress_taken_day_format" = "%d of %d taken";
 "progress_remaining_format" = "%d dose(s) remaining";
+"day_progress_accessibility_format" = "%d of %d doses completed";
 "percent_format" = "%d percent";
 "taken_at_format" = "at %@";
 "scheduled_accessibility_format" = "%@scheduled %@";
@@ -173,6 +179,14 @@
 "ocr_status_error_format" = "OCR request failed with status %d.";
 "parse_status_error_format" = "Parse request failed with status %d.";
 "time_to_take_dosage_format" = "Time to take %@.";
+"snooze_set_format" = "Reminder set for %@";
+"Couldn't schedule reminder" = "Couldn't schedule reminder";
+"Notifications are disabled. Enable them in Settings to snooze a dose." = "Notifications are disabled. Enable them in Settings to snooze a dose.";
+"The reminder couldn't be scheduled. Please try again." = "The reminder couldn't be scheduled. Please try again.";
+"Schedules another reminder in 10 minutes" = "Schedules another reminder in 10 minutes";
+"OK" = "OK";
+"today_date_format" = "Today, %@";
+"selected_date_format" = "%@, %@";
 
 /* Auth */
 "Welcome to MedVision" = "Welcome to MedVision";
@@ -212,9 +226,7 @@
 /* Scan */
 "Label" = "Label";
 "Barcode" = "Barcode";
-"Centre the label inside the frame" = "Centre the drug name; avoid the patient header. Names and ages are removed before processing.";
 "Centre the barcode inside the frame" = "Centre the barcode inside the frame";
-"Patient name and age on labels are removed before processing." = "Patient name and age on labels are removed before processing.";
 "Caregiver LINE alerts" = "Caregiver LINE alerts";
 "Caregiver connected" = "Caregiver connected";
 "No caregiver linked" = "No caregiver linked";
@@ -223,6 +235,40 @@
 "Unlink" = "Unlink";
 "Sign in to enable caregiver LINE alerts. Guest mode stays on this device only." = "Sign in to enable caregiver LINE alerts. Guest mode stays on this device only.";
 "If a dose is not taken within 30 minutes, your linked caregiver gets one LINE message (medicine name and time only — not photos)." = "If a dose is not taken within 30 minutes, your linked caregiver gets one LINE message (medicine name and time only — not photos).";
+"Caregiver alerts" = "Caregiver alerts";
+"LINE caregiver alerts" = "LINE caregiver alerts";
+"Sign-in required" = "Sign-in required";
+"Unavailable" = "Unavailable";
+"Checking connection" = "Checking connection";
+"If a dose is still untaken after 30 minutes, your caregiver receives one LINE message." = "If a dose is still untaken after 30 minutes, your caregiver receives one LINE message.";
+"Only your display name, medicine name, dosage, and scheduled time are shared. Photos are never sent." = "Only your display name, medicine name, dosage, and scheduled time are shared. Photos are never sent.";
+"Sign in to connect a caregiver. Medicines already saved on this device will remain here." = "Sign in to connect a caregiver. Medicines already saved on this device will remain here.";
+"Sign in to connect" = "Sign in to connect";
+"Leaves guest mode and opens the sign-in screen." = "Leaves guest mode and opens the sign-in screen.";
+"Caregiver alerts are unavailable right now. Please try again later." = "Caregiver alerts are unavailable right now. Please try again later.";
+"Caregiver alerts could not be updated. Check your connection and try again." = "Caregiver alerts could not be updated. Check your connection and try again.";
+"Caregiver disconnected. Missed-dose alerts have stopped." = "Caregiver disconnected. Missed-dose alerts have stopped.";
+"Checking caregiver connection…" = "Checking caregiver connection…";
+"Connect caregiver" = "Connect caregiver";
+"Disconnect caregiver" = "Disconnect caregiver";
+"Try again" = "Try again";
+"Disconnect caregiver?" = "Disconnect caregiver?";
+"Your caregiver will no longer receive missed-dose alerts." = "Your caregiver will no longer receive missed-dose alerts.";
+"Connect through LINE" = "Connect through LINE";
+"Ask your caregiver to complete these steps in LINE." = "Ask your caregiver to complete these steps in LINE.";
+"Invite code" = "Invite code";
+"Expires in" = "Expires in";
+"Invite code expired" = "Invite code expired";
+"Code copied" = "Code copied";
+"Copy code" = "Copy code";
+"On your caregiver’s phone" = "On your caregiver’s phone";
+"Open the MedVision LINE Official Account." = "Open the MedVision LINE Official Account.";
+"Send the invite code above as a LINE message." = "Send the invite code above as a LINE message.";
+"Keep this screen open until the connection is confirmed." = "Keep this screen open until the connection is confirmed.";
+"Waiting for your caregiver…" = "Waiting for your caregiver…";
+"Close this screen and generate a new invite code." = "Close this screen and generate a new invite code.";
+"Close" = "Close";
+"step_accessibility_format" = "Step %d. %@";
 "Scanning label..." = "Scanning label...";
 "Reading label..." = "Reading label...";
 "Checking medicine lists..." = "Checking medicine lists...";

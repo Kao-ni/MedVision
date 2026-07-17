@@ -31,6 +31,10 @@
 "Good afternoon" = "สวัสดีตอนบ่าย";
 "Good evening" = "สวัสดีตอนเย็น";
 "Daily progress" = "ความคืบหน้าประจำวัน";
+"Morning" = "ช่วงเช้า";
+"Afternoon" = "ช่วงบ่าย";
+"Night" = "ช่วงกลางคืน";
+"No doses scheduled" = "ไม่มียาตามกำหนด";
 "Add medicines from the Medicines tab" = "เพิ่มยาได้จากแท็บรายการยา";
 "Medicines" = "รายการยา";
 "Manage doses and reminders in one place" = "จัดการขนาดยาและการแจ้งเตือนในที่เดียว";
@@ -55,6 +59,7 @@
 "Great job keeping up with your medicines." = "เยี่ยมมาก คุณทานยาครบตามกำหนด";
 "Unknown" = "ไม่ทราบ";
 "Skip" = "ข้าม";
+"Snooze 10 min" = "เตือนอีก 10 นาที";
 "Take Now" = "ทานตอนนี้";
 "Undo" = "ย้อนกลับ";
 "Taken" = "ทานแล้ว";
@@ -144,7 +149,6 @@
 "None" = "ไม่มี";
 "Account" = "บัญชี";
 "Email" = "อีเมล";
-"Phone" = "โทรศัพท์";
 "Personal" = "ข้อมูลส่วนตัว";
 "Health" = "สุขภาพ";
 "Contact" = "ข้อมูลติดต่อ";
@@ -162,7 +166,9 @@
 "Time to take your medicine." = "ถึงเวลาทานยาแล้ว";
 
 "progress_taken_format" = "ทานแล้ว %d จาก %d รายการวันนี้";
+"progress_taken_day_format" = "ทานแล้ว %d จาก %d รายการ";
 "progress_remaining_format" = "เหลืออีก %d รายการ";
+"day_progress_accessibility_format" = "ทานยาแล้ว %d จาก %d รายการ";
 "percent_format" = "%d เปอร์เซ็นต์";
 "taken_at_format" = "เวลา %@";
 "scheduled_accessibility_format" = "%@กำหนดเวลา %@";
@@ -173,6 +179,14 @@
 "ocr_status_error_format" = "การอ่านข้อมูลล้มเหลว รหัส %d";
 "parse_status_error_format" = "การแปลข้อมูลล้มเหลว รหัส %d";
 "time_to_take_dosage_format" = "ถึงเวลาทาน %@";
+"snooze_set_format" = "ตั้งเตือนอีกครั้งเวลา %@";
+"Couldn't schedule reminder" = "ไม่สามารถตั้งการแจ้งเตือนได้";
+"Notifications are disabled. Enable them in Settings to snooze a dose." = "การแจ้งเตือนถูกปิดอยู่ โปรดเปิดในการตั้งค่าเพื่อเลื่อนเตือนการทานยา";
+"The reminder couldn't be scheduled. Please try again." = "ไม่สามารถตั้งการแจ้งเตือนได้ โปรดลองอีกครั้ง";
+"Schedules another reminder in 10 minutes" = "ตั้งการแจ้งเตือนอีกครั้งใน 10 นาที";
+"OK" = "ตกลง";
+"today_date_format" = "วันนี้ %@";
+"selected_date_format" = "%@ %@";
 
 /* Auth */
 "Welcome to MedVision" = "ยินดีต้อนรับสู่ MedVision";
@@ -212,9 +226,7 @@
 /* Scan */
 "Label" = "ฉลาก";
 "Barcode" = "บาร์โค้ด";
-"Centre the label inside the frame" = "จัดให้อยู่ตรงชื่อยา หลีกเลี่ยงส่วนหัวชื่อผู้ป่วย ชื่อและอายุจะถูกลบก่อนประมวลผล";
 "Centre the barcode inside the frame" = "จัดบาร์โค้ดให้อยู่กลางกรอบ";
-"Patient name and age on labels are removed before processing." = "ชื่อและอายุผู้ป่วยบนฉลากจะถูกลบก่อนประมวลผล";
 "Caregiver LINE alerts" = "แจ้งเตือนผู้ดูแลผ่าน LINE";
 "Caregiver connected" = "เชื่อมต่อผู้ดูแลแล้ว";
 "No caregiver linked" = "ยังไม่ได้เชื่อมผู้ดูแล";
@@ -223,6 +235,40 @@
 "Unlink" = "ยกเลิกการเชื่อมต่อ";
 "Sign in to enable caregiver LINE alerts. Guest mode stays on this device only." = "เข้าสู่ระบบเพื่อเปิดแจ้งเตือน LINE สำหรับผู้ดูแล โหมดผู้เยี่ยมชมเก็บข้อมูลบนเครื่องเท่านั้น";
 "If a dose is not taken within 30 minutes, your linked caregiver gets one LINE message (medicine name and time only — not photos)." = "หากไม่ทานยาภายใน 30 นาที ผู้ดูแลที่เชื่อม LINE จะได้รับข้อความหนึ่งครั้ง (ชื่อยาและเวลาเท่านั้น — ไม่ส่งรูป)";
+"Caregiver alerts" = "การแจ้งเตือนผู้ดูแล";
+"LINE caregiver alerts" = "แจ้งเตือนผู้ดูแลผ่าน LINE";
+"Sign-in required" = "ต้องเข้าสู่ระบบ";
+"Unavailable" = "ไม่พร้อมใช้งาน";
+"Checking connection" = "กำลังตรวจสอบการเชื่อมต่อ";
+"If a dose is still untaken after 30 minutes, your caregiver receives one LINE message." = "หากยังไม่ได้ทานยาหลังจากผ่านไป 30 นาที ผู้ดูแลจะได้รับข้อความ LINE หนึ่งครั้ง";
+"Only your display name, medicine name, dosage, and scheduled time are shared. Photos are never sent." = "ระบบจะแชร์เฉพาะชื่อที่แสดง ชื่อยา ขนาดยา และเวลาที่กำหนดเท่านั้น โดยจะไม่ส่งรูปภาพ";
+"Sign in to connect a caregiver. Medicines already saved on this device will remain here." = "เข้าสู่ระบบเพื่อเชื่อมต่อผู้ดูแล ยาที่บันทึกไว้ในอุปกรณ์นี้จะยังคงอยู่";
+"Sign in to connect" = "เข้าสู่ระบบเพื่อเชื่อมต่อ";
+"Leaves guest mode and opens the sign-in screen." = "ออกจากโหมดผู้เยี่ยมชมและเปิดหน้าลงชื่อเข้าใช้";
+"Caregiver alerts are unavailable right now. Please try again later." = "ขณะนี้ไม่สามารถใช้การแจ้งเตือนผู้ดูแลได้ โปรดลองอีกครั้งภายหลัง";
+"Caregiver alerts could not be updated. Check your connection and try again." = "ไม่สามารถอัปเดตการแจ้งเตือนผู้ดูแลได้ โปรดตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง";
+"Caregiver disconnected. Missed-dose alerts have stopped." = "ยกเลิกการเชื่อมต่อผู้ดูแลแล้ว การแจ้งเตือนเมื่อพลาดทานยาหยุดทำงาน";
+"Checking caregiver connection…" = "กำลังตรวจสอบการเชื่อมต่อผู้ดูแล…";
+"Connect caregiver" = "เชื่อมต่อผู้ดูแล";
+"Disconnect caregiver" = "ยกเลิกการเชื่อมต่อผู้ดูแล";
+"Try again" = "ลองอีกครั้ง";
+"Disconnect caregiver?" = "ยกเลิกการเชื่อมต่อผู้ดูแลหรือไม่";
+"Your caregiver will no longer receive missed-dose alerts." = "ผู้ดูแลจะไม่ได้รับการแจ้งเตือนเมื่อพลาดทานยาอีกต่อไป";
+"Connect through LINE" = "เชื่อมต่อผ่าน LINE";
+"Ask your caregiver to complete these steps in LINE." = "ขอให้ผู้ดูแลทำตามขั้นตอนเหล่านี้ใน LINE";
+"Invite code" = "รหัสเชิญ";
+"Expires in" = "หมดอายุใน";
+"Invite code expired" = "รหัสเชิญหมดอายุแล้ว";
+"Code copied" = "คัดลอกรหัสแล้ว";
+"Copy code" = "คัดลอกรหัส";
+"On your caregiver’s phone" = "บนโทรศัพท์ของผู้ดูแล";
+"Open the MedVision LINE Official Account." = "เปิดบัญชี LINE Official Account ของ MedVision";
+"Send the invite code above as a LINE message." = "ส่งรหัสเชิญด้านบนเป็นข้อความ LINE";
+"Keep this screen open until the connection is confirmed." = "เปิดหน้าจอนี้ไว้จนกว่าจะยืนยันการเชื่อมต่อ";
+"Waiting for your caregiver…" = "กำลังรอผู้ดูแล…";
+"Close this screen and generate a new invite code." = "ปิดหน้าจอนี้แล้วสร้างรหัสเชิญใหม่";
+"Close" = "ปิด";
+"step_accessibility_format" = "ขั้นตอนที่ %d %@";
 "Scanning label..." = "กำลังสแกนฉลาก...";
 "Reading label..." = "กำลังอ่านฉลาก...";
 "Checking medicine lists..." = "กำลังตรวจสอบรายการยา...";

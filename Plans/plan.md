@@ -17,7 +17,7 @@
 - [x] **Backend platform: Supabase.** Use Supabase Auth, Postgres, Storage, Edge Functions, and RLS as the primary backend stack.
 - [x] **OCR provider: Typhoon OCR via backend proxy.** The mobile app must never call Typhoon directly.
 - [x] **Data ownership: cloud-backed v1.** Medicines, schedules, dose events, and OCR job records are stored in Supabase.
-- [x] **Scope model: personal single-user app.** No caregiver, family, or team access in v1.
+- [x] **Scope model: personal single-user app.** No caregiver, family, or team app access in v1. A linked caregiver may receive one-way LINE missed-dose notifications only.
 - [x] **Drug info access: backend-proxied.** The app must not call public drug APIs directly.
 
 ---
@@ -138,7 +138,7 @@ Do not call the backend v1 launched until all of the following are true:
 
 These items are intentionally out of scope for backend v1:
 
-- Caregiver or family shared access
+- Caregiver or family shared app/data access (one-way LINE missed-dose notifications are the approved exception)
 - Multi-user collaboration or team accounts
 - Medication interaction checking
 - Offline or on-device OCR

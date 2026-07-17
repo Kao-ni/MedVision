@@ -42,6 +42,7 @@ struct ScanView: View {
     @State private var scannedBarcode: String?
     @State private var didCaptureBarcode = false
     @State private var barcodeUnlockTask: Task<Void, Never>?
+    @State private var recognitionTask: Task<Void, Never>?
     @State private var capturedPhotoData: Data?
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var showPhotoPicker = false
@@ -55,7 +56,7 @@ struct ScanView: View {
                         ? nil
                         : recognitionStage.message,
                     selectedMode: $selectedMode,
-                    onClose: onClose,
+                    onClose: closeScanner,
                     onCapture: { image in
                         if selectedMode == .barcode {
                             handleBarcodeImage(image)
@@ -100,10 +101,15 @@ struct ScanView: View {
                 scanErrorMessage: ocrErrorMessage
             )
         }
+        .onDisappear {
+            cancelPendingWork()
+        }
     }
 
     private func handleCapture(_ image: UIImage) {
-        Task {
+        guard !isRecognizing else { return }
+        recognitionTask?.cancel()
+        recognitionTask = Task {
             await MainActor.run {
                 didCaptureBarcode = false
                 isRecognizing = true
@@ -123,10 +129,17 @@ struct ScanView: View {
                         recognitionStage = stage
                     }
                 }
+                try Task.checkCancellation()
                 await MainActor.run {
                     recognitionResult = result
                     ocrErrorMessage = nil
                 }
+            } catch is CancellationError {
+                await MainActor.run {
+                    isRecognizing = false
+                    recognitionStage = .idle
+                }
+                return
             } catch {
                 await MainActor.run {
                     recognitionResult = nil
@@ -135,6 +148,7 @@ struct ScanView: View {
                 }
             }
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 isRecognizing = false
                 recognitionStage = .idle
                 showAddMedicine = true
@@ -239,6 +253,20 @@ struct ScanView: View {
             didCaptureBarcode = false
         }
     }
+
+    private func closeScanner() {
+        cancelPendingWork()
+        onClose()
+    }
+
+    private func cancelPendingWork() {
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        barcodeUnlockTask?.cancel()
+        barcodeUnlockTask = nil
+        isRecognizing = false
+        recognitionStage = .idle
+    }
 }
 
 private struct ScannerFullScreenView: View {
@@ -308,9 +336,7 @@ private struct ScannerFullScreenView: View {
                 camera.stop()
             }
             .onChange(of: selectedMode) { _, mode in
-                withAnimation(.easeInOut(duration: 0.28)) {
-                    camera.setMode(mode)
-                }
+                camera.setMode(mode)
             }
         }
         .ignoresSafeArea()
@@ -322,7 +348,7 @@ private struct ScannerFullScreenView: View {
                     systemImage: "chevron.left",
                     size: 52,
                     isActive: false,
-                    isDisabled: isBusy,
+                    isDisabled: false,
                     action: onClose
                 )
 
@@ -344,10 +370,12 @@ private struct ScannerFullScreenView: View {
                     height: dimensions.height
                 )
 
-                TipBanner(
-                    text: camera.tipText(for: selectedMode),
-                    color: camera.tipColor
-                )
+                if let tipText = camera.tipText(for: selectedMode) {
+                    TipBanner(
+                        text: tipText,
+                        color: camera.tipColor
+                    )
+                }
             }
             .frame(maxWidth: .infinity)
 
@@ -390,7 +418,6 @@ private struct ScannerFullScreenView: View {
             return CGSize(width: size.width * 0.75, height: size.height * 0.18)
         }
     }
-
 }
 
 private enum ScannerMode: String, CaseIterable {
@@ -411,9 +438,9 @@ private enum ScannerMode: String, CaseIterable {
         }
     }
 
-    var defaultTip: String {
+    var defaultTip: String? {
         switch self {
-        case .label: return AppLanguage.localized("Centre the label inside the frame")
+        case .label: return nil
         case .barcode: return AppLanguage.localized("Centre the barcode inside the frame")
         }
     }
@@ -549,7 +576,6 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         sessionQueue.async { [weak self] in
             guard let self else { return }
             self.session.beginConfiguration()
-            self.session.sessionPreset = mode == .label ? .photo : .high
             self.metadataOutput.metadataObjectTypes = mode == .barcode
                 ? supportedBarcodeObjectTypes
                 : []
@@ -605,7 +631,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         }
     }
 
-    func tipText(for mode: ScannerMode) -> String {
+    func tipText(for mode: ScannerMode) -> String? {
         switch tipState {
         case .default:
             return mode.defaultTip
@@ -643,7 +669,7 @@ private final class ScannerCameraController: NSObject, ObservableObject {
         guard !isConfigured else { return true }
 
         session.beginConfiguration()
-        session.sessionPreset = currentMode == .label ? .photo : .high
+        session.sessionPreset = .photo
 
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device),
@@ -859,6 +885,18 @@ extension ScannerCameraController: AVCaptureVideoDataOutputSampleBufferDelegate 
     }
 }
 
+extension ScannerCameraController: AVCaptureMetadataOutputObjectsDelegate {
+    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+        guard currentMode == .barcode else { return }
+        guard let readable = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+              let value = readable.stringValue, !value.isEmpty else { return }
+        DispatchQueue.main.async {
+            self.tipState = .ready
+            self.onBarcodeCapture?(value)
+        }
+    }
+}
+
 private final class ScannerPhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate {
     nonisolated(unsafe) var onPhoto: ((UIImage) -> Void)?
     nonisolated(unsafe) var onFinish: (() -> Void)?
@@ -878,18 +916,6 @@ private final class ScannerPhotoDelegate: NSObject, AVCapturePhotoCaptureDelegat
 
         DispatchQueue.main.async { [onPhoto] in
             onPhoto?(image)
-        }
-    }
-}
-
-extension ScannerCameraController: AVCaptureMetadataOutputObjectsDelegate {
-    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
-        guard currentMode == .barcode else { return }
-        guard let readable = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              let value = readable.stringValue, !value.isEmpty else { return }
-        DispatchQueue.main.async {
-            self.tipState = .ready
-            self.onBarcodeCapture?(value)
         }
     }
 }

@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct ProfileView: View {
     @Environment(AuthService.self) private var auth
@@ -6,11 +8,10 @@ struct ProfileView: View {
     @AppStorage("profile_lastName") private var lastName = "Last Name"
     @AppStorage("profile_gender") private var gender = "Male"
     @AppStorage("profile_birthdayTimestamp") private var birthdayTimestamp: Double = Date().timeIntervalSince1970
-    @AppStorage("profile_bloodType") private var bloodType = "O+"
     @AppStorage("profile_allergies") private var allergies = "None"
     @AppStorage("profile_conditions") private var conditions = "None"
     @AppStorage("profile_medications") private var medications = "None"
-    @AppStorage("profile_phone") private var phone = ""
+    @AppStorage("profile_photoDataBase64") private var profilePhotoDataBase64 = ""
     @AppStorage(AppLanguage.storageKey) private var displayLanguage = "en"
     @AppStorage(UserMealTimes.breakfastKey) private var breakfastSeconds = UserMealTimes.defaultBreakfast
     @AppStorage(UserMealTimes.lunchKey) private var lunchSeconds = UserMealTimes.defaultLunch
@@ -18,6 +19,7 @@ struct ProfileView: View {
     @Environment(\.locale) private var locale
 
     @State private var showEditSheet = false
+    @State private var profilePhotoItem: PhotosPickerItem?
     @State private var isSigningOut = false
     @State private var signOutError: String?
 
@@ -43,6 +45,16 @@ struct ProfileView: View {
         return values.isEmpty ? "MV" : values.uppercased()
     }
 
+    private var profilePhotoImage: UIImage? {
+        guard
+            !profilePhotoDataBase64.isEmpty,
+            let data = Data(base64Encoded: profilePhotoDataBase64)
+        else {
+            return nil
+        }
+        return UIImage(data: data)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -51,7 +63,6 @@ struct ProfileView: View {
                     identityCard
 
                     infoCard(title: "Health Information", items: [
-                        ProfileInfoItem(icon: "drop.fill", tint: .mvDanger, label: "Blood Type", value: bloodType),
                         ProfileInfoItem(icon: "allergens", tint: .mvWarning, label: "Allergies", value: allergies, localizeValue: allergies == "None"),
                         ProfileInfoItem(icon: "cross.case.fill", tint: .mvAccent, label: "Conditions", value: conditions, localizeValue: conditions == "None"),
                         ProfileInfoItem(icon: "pills.fill", tint: .mvSuccess, label: "Medications", value: medications, localizeValue: medications == "None")
@@ -63,8 +74,7 @@ struct ProfileView: View {
                     CaregiverAlertsCard()
 
                     infoCard(title: "Account", items: [
-                        ProfileInfoItem(icon: "envelope.fill", tint: .mvAccent, label: "Email", value: accountEmail),
-                        ProfileInfoItem(icon: "phone.fill", tint: .mvSuccess, label: "Phone", value: phone.isEmpty ? "—" : phone)
+                        ProfileInfoItem(icon: "envelope.fill", tint: .mvAccent, label: "Email", value: accountEmail)
                     ])
 
                     if let signOutError {
@@ -104,11 +114,9 @@ struct ProfileView: View {
                     lastName: $lastName,
                     gender: $gender,
                     birthdayTimestamp: $birthdayTimestamp,
-                    bloodType: $bloodType,
                     allergies: $allergies,
                     conditions: $conditions,
                     medications: $medications,
-                    phone: $phone,
                     accountEmail: accountEmail
                 )
             }
@@ -116,6 +124,19 @@ struct ProfileView: View {
                 applyAuthNameIfNeeded()
                 if displayLanguage.isEmpty {
                     displayLanguage = "en"
+                }
+            }
+            .onChange(of: profilePhotoItem) { _, newItem in
+                guard let newItem else { return }
+                Task {
+                    let data = try? await newItem.loadTransferable(type: Data.self)
+                    let processedData = data.flatMap { preparedProfilePhotoData(from: $0) }
+                    await MainActor.run {
+                        if let processedData {
+                            profilePhotoDataBase64 = processedData.base64EncodedString()
+                        }
+                        profilePhotoItem = nil
+                    }
                 }
             }
         }
@@ -143,21 +164,47 @@ struct ProfileView: View {
 
     private var identityCard: some View {
         VStack(spacing: 15) {
-            Text(initials)
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.mvOnAccent)
-                .frame(width: 82, height: 82)
-                .background(
-                    LinearGradient(
-                        colors: [Color.mvAccentGradientStart, Color.mvAccentGradientEnd],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: Circle()
-                )
-                .overlay(Circle().stroke(Color.white.opacity(0.55), lineWidth: 2))
-                .shadow(color: Color.mvAccent.opacity(0.3), radius: 14, x: 0, y: 7)
-                .accessibilityHidden(true)
+            PhotosPicker(selection: $profilePhotoItem, matching: .images, photoLibrary: .shared()) {
+                ZStack(alignment: .bottomTrailing) {
+                    Group {
+                        if let profilePhotoImage {
+                            Image(uiImage: profilePhotoImage)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Text(initials)
+                                .font(.system(size: 30, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.mvOnAccent)
+                                .frame(width: 82, height: 82)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.mvAccentGradientStart, Color.mvAccentGradientEnd],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    in: Circle()
+                                )
+                        }
+                    }
+                    .frame(width: 82, height: 82)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.55), lineWidth: 2))
+                    .shadow(color: Color.mvAccent.opacity(0.3), radius: 14, x: 0, y: 7)
+
+                    Circle()
+                        .fill(Color.mvAccent)
+                        .frame(width: 26, height: 26)
+                        .overlay(
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Color.mvOnAccent)
+                        )
+                        .offset(x: 2, y: 2)
+                        .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 2)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(profilePhotoImage == nil ? "Add profile picture" : "Change profile picture")
 
             Text("\(displayFirstName) \(displayLastName)")
                 .font(.title2.weight(.bold))
@@ -182,6 +229,27 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
         .padding(22)
         .glassCard()
+    }
+
+    private func preparedProfilePhotoData(from data: Data) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+
+        let maxDimension: CGFloat = 512
+        let width = image.size.width
+        let height = image.size.height
+        let scale = min(maxDimension / max(width, height), 1)
+        let targetSize = CGSize(width: width * scale, height: height * scale)
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        format.opaque = false
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
+        let rendered = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        return rendered.jpegData(compressionQuality: 0.85) ?? data
     }
 
     private var languageCard: some View {
@@ -374,17 +442,14 @@ struct EditProfileSheet: View {
     @Binding var lastName: String
     @Binding var gender: String
     @Binding var birthdayTimestamp: Double
-    @Binding var bloodType: String
     @Binding var allergies: String
     @Binding var conditions: String
     @Binding var medications: String
-    @Binding var phone: String
     let accountEmail: String
 
     @Environment(\.dismiss) private var dismiss
 
     let genderOptions = ["Male", "Female", "Non-binary", "Prefer not to say"]
-    let bloodTypeOptions = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"]
 
     private var birthdayBinding: Binding<Date> {
         Binding(
@@ -412,11 +477,6 @@ struct EditProfileSheet: View {
                 }
 
                 Section("Health") {
-                    Picker("Blood Type", selection: $bloodType) {
-                        ForEach(bloodTypeOptions, id: \.self) {
-                            Text(LocalizedStringKey($0))
-                        }
-                    }
                     LabeledContent {
                         TextField("None", text: $allergies)
                             .multilineTextAlignment(.trailing)
@@ -442,8 +502,6 @@ struct EditProfileSheet: View {
 
                 Section("Contact") {
                     LabeledContent("Email", value: accountEmail)
-                    TextField("Phone", text: $phone)
-                        .keyboardType(.phonePad)
                 }
             }
             .scrollContentBackground(.hidden)
