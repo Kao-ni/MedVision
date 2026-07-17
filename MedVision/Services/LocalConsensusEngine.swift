@@ -34,6 +34,41 @@ enum LocalConsensusEngine {
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    nonisolated private static func namesAgree(_ first: String, _ second: String) -> Bool {
+        let firstName = normalizeName(first)
+        return !firstName.isEmpty && firstName == normalizeName(second)
+    }
+
+    nonisolated private static func normalizeDosageEvidence(_ value: String) -> String {
+        value
+            .lowercased()
+            .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    nonisolated private static func supportedJudgeDosage(
+        rawText: String,
+        ocrDosage: String,
+        judge: JudgeResult?,
+        candidates: [ResolutionCandidate]
+    ) -> String {
+        guard
+            candidates.contains(where: { $0.source == "judge" }),
+            let dosage = judge?.dosage?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !dosage.isEmpty
+        else {
+            return ""
+        }
+
+        let normalizedDosage = normalizeDosageEvidence(dosage)
+        if normalizedDosage == normalizeDosageEvidence(ocrDosage) {
+            return dosage
+        }
+
+        let normalizedRawText = normalizeDosageEvidence(rawText)
+        return normalizedRawText.contains(normalizedDosage) ? dosage : ""
+    }
+
     nonisolated static func isLatinScriptName(_ name: String) -> Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
@@ -61,8 +96,9 @@ enum LocalConsensusEngine {
         return best
     }
 
-    /// Agreement-based resolution. All sources equal — no winner-picking on conflict.
+    /// A single source may confirm OCR; changing OCR requires two agreeing sources.
     nonisolated static func resolve(
+        rawText: String = "",
         ocrName: String,
         ocrDosage: String,
         thai: MatchResult?,
@@ -88,9 +124,6 @@ enum LocalConsensusEngine {
             )
         }
 
-        let dosageFromJudge = judge?.dosage?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let dosage = (dosageFromJudge?.isEmpty == false ? dosageFromJudge! : ocrDosage)
-
         if candidates.isEmpty {
             return MedicineResolution(
                 status: .unverified,
@@ -114,14 +147,31 @@ enum LocalConsensusEngine {
             )
         }
 
+        let agreedName = candidates[0].name
         let sources = Set(candidates.map(\.source))
-        let label = (sources.count == 1 && sources.contains("judge")) ? "ai_corrected" : "verified"
+        if !namesAgree(ocrName, agreedName) && sources.count < 2 {
+            return MedicineResolution(
+                status: .unverified,
+                finalName: ocrName,
+                finalDosage: ocrDosage,
+                label: "unverified",
+                candidates: candidates,
+                judgeSkipped: false
+            )
+        }
+
+        let dosageFromJudge = supportedJudgeDosage(
+            rawText: rawText,
+            ocrDosage: ocrDosage,
+            judge: judge,
+            candidates: candidates
+        )
 
         return MedicineResolution(
             status: .consensus,
-            finalName: candidates[0].name,
-            finalDosage: dosage,
-            label: label,
+            finalName: agreedName,
+            finalDosage: dosageFromJudge.isEmpty ? ocrDosage : dosageFromJudge,
+            label: "verified",
             candidates: candidates,
             judgeSkipped: false
         )
@@ -168,6 +218,7 @@ enum LocalConsensusEngine {
 
     /// Sequential: Thai → gated openFDA → judge always → resolve by agreement.
     nonisolated static func run(
+        rawText: String = "",
         ocrName: String,
         ocrDosage: String,
         callJudge: ((MatchResult?, MatchResult?) async -> JudgeResult?)? = nil
@@ -181,6 +232,7 @@ enum LocalConsensusEngine {
         }
 
         return resolve(
+            rawText: rawText,
             ocrName: ocrName,
             ocrDosage: ocrDosage,
             thai: thai,

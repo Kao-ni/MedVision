@@ -308,6 +308,7 @@ struct RecognitionService {
         onStage?(.checkingLists)
         onStage?(.verifyingDetails)
         let resolution = await LocalConsensusEngine.run(
+            rawText: rawText,
             ocrName: medicine.name,
             ocrDosage: medicine.dosage
         ) { thai, openFda in

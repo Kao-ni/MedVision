@@ -40,6 +40,23 @@ function buildProtectedTokens() {
 
 const PROTECTED_TOKENS = buildProtectedTokens();
 
+function extractNaturalText(rawText) {
+  const text = rawText
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/, "")
+    .replace(/\s*```$/, "");
+  try {
+    const payload = JSON.parse(text);
+    if (typeof payload?.natural_text === "string") {
+      return payload.natural_text;
+    }
+  } catch {
+    // Plain OCR text is already in the expected shape.
+  }
+  return rawText;
+}
+
 function isProtectedSpan(text) {
   const lower = text.toLowerCase().trim();
   if (!lower) return false;
@@ -66,7 +83,7 @@ export function scrubPii(rawText = "") {
 
   const categories = new Set();
   let redactionCount = 0;
-  let text = rawText;
+  let text = extractNaturalText(rawText);
 
   const apply = (pattern, category, replacer) => {
     text = text.replace(pattern, (...args) => {

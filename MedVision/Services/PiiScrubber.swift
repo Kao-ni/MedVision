@@ -29,6 +29,24 @@ enum PiiScrubber {
         return tokens
     }()
 
+    private static func extractNaturalText(_ rawText: String) -> String {
+        let trimmed = rawText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(
+                of: #"^```(?:json)?\s*|\s*```$"#,
+                with: "",
+                options: [.regularExpression, .caseInsensitive]
+            )
+        guard
+            let data = trimmed.data(using: .utf8),
+            let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let naturalText = payload["natural_text"] as? String
+        else {
+            return rawText
+        }
+        return naturalText
+    }
+
     static func scrub(_ rawText: String) -> Result {
         guard !rawText.isEmpty else {
             return Result(scrubbedText: "", redactionCount: 0, categories: [])
@@ -36,7 +54,7 @@ enum PiiScrubber {
 
         var categories = Set<String>()
         var redactionCount = 0
-        var text = rawText
+        var text = Self.extractNaturalText(rawText)
 
         func isProtected(_ span: String) -> Bool {
             let lower = span.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)

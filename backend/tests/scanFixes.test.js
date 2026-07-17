@@ -17,6 +17,14 @@ const fieldConfidenceModel = readFileSync(
   path.join(root, "MedVision/Models/MedicineFieldConfidence.swift"),
   "utf8"
 );
+const piiScrubber = readFileSync(
+  path.join(root, "MedVision/Services/PiiScrubber.swift"),
+  "utf8"
+);
+const localConsensusEngine = readFileSync(
+  path.join(root, "MedVision/Services/LocalConsensusEngine.swift"),
+  "utf8"
+);
 
 function parseConfidence(value) {
   if (typeof value !== "string") return null;
@@ -181,4 +189,15 @@ test("issue 2: confirm screen surfaces uncertainty UI", () => {
   assert.match(addMedicineView, /ocrFieldLabel\("Dosage", confidence: prefilled\?\.fieldConfidence\.dosage\)/);
   assert.match(addMedicineView, /ocrFieldLabel\("Form", confidence: prefilled\?\.fieldConfidence\.form\)/);
   assert.match(addMedicineView, /Scan Warnings/);
+});
+
+test("guest OCR scrubber unwraps Typhoon natural_text", () => {
+  assert.match(piiScrubber, /JSONSerialization\.jsonObject/);
+  assert.match(piiScrubber, /\["natural_text"\]/);
+});
+
+test("guest consensus gates corrections and judge dosage by evidence", () => {
+  assert.match(localConsensusEngine, /sources\.count < 2/);
+  assert.match(localConsensusEngine, /normalizedRawText\.contains\(normalizedDosage\)/);
+  assert.match(recognitionService, /rawText:\s*rawText/);
 });

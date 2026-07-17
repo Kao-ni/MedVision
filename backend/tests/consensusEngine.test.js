@@ -90,18 +90,76 @@ test("resolution: Thai vs judge disagreement is disagreement", () => {
   assert.equal(result.finalName, null);
 });
 
-test("resolution: judge-only non-uncertain is consensus suggestion", () => {
+test("resolution: judge-only correction cannot overwrite OCR", () => {
   const result = resolveConsensus({
-    ocrName: "Paracetmol",
-    ocrDosage: "5O0 mg",
+    ocrName: "Dehecta",
+    ocrDosage: "3 gm/20 mL",
     thaiResult: null,
     openFdaResult: null,
-    judgeResult: { name: "Paracetamol", dosage: "500 mg", verdict: "prefer_ocr" }
+    judgeResult: {
+      name: "Dextropropoxyphene",
+      dosage: "30 mg/20 mL",
+      verdict: "prefer_ocr"
+    }
+  });
+  assert.equal(result.status, "unverified");
+  assert.equal(result.label, "unverified");
+  assert.equal(result.finalName, "Dehecta");
+  assert.equal(result.finalDosage, "3 gm/20 mL");
+});
+
+test("resolution: one lookup cannot replace a different OCR name", () => {
+  const result = resolveConsensus({
+    ocrName: "Celebrex",
+    ocrDosage: "200 mg",
+    thaiResult: { name: "Celecoxib", score: 0.91 },
+    openFdaResult: null,
+    judgeResult: null
+  });
+  assert.equal(result.status, "unverified");
+  assert.equal(result.finalName, "Celebrex");
+  assert.equal(result.finalDosage, "200 mg");
+});
+
+test("resolution: two independent sources may correct an OCR name", () => {
+  const result = resolveConsensus({
+    ocrName: "Paracetmol",
+    ocrDosage: "500 mg",
+    thaiResult: { name: "Paracetamol", score: 0.96 },
+    openFdaResult: null,
+    judgeResult: { name: "Paracetamol", dosage: "500 mg", verdict: "prefer_thai" }
   });
   assert.equal(result.status, "consensus");
-  assert.equal(result.label, "ai_corrected");
   assert.equal(result.finalName, "Paracetamol");
   assert.equal(result.finalDosage, "500 mg");
+});
+
+test("resolution: unsupported judge dosage cannot replace parsed dosage", () => {
+  const result = resolveConsensus({
+    rawText: "Meiact 200 mg tablet",
+    ocrName: "Meiact",
+    ocrDosage: "200 mg",
+    thaiResult: null,
+    openFdaResult: null,
+    judgeResult: { name: "Meiact", dosage: "20 mg", verdict: "prefer_ocr" }
+  });
+  assert.equal(result.status, "consensus");
+  assert.equal(result.finalName, "Meiact");
+  assert.equal(result.finalDosage, "200 mg");
+});
+
+test("resolution: judge dosage printed in OCR text may replace parser dosage", () => {
+  const result = resolveConsensus({
+    rawText: "Bioflor 250 mg capsule. Take one capsule twice daily.",
+    ocrName: "Bioflor",
+    ocrDosage: "one capsule twice daily",
+    thaiResult: null,
+    openFdaResult: null,
+    judgeResult: { name: "Bioflor", dosage: "250 mg", verdict: "prefer_ocr" }
+  });
+  assert.equal(result.status, "consensus");
+  assert.equal(result.finalName, "Bioflor");
+  assert.equal(result.finalDosage, "250 mg");
 });
 
 test("resolution: nothing named returns unverified with OCR name", () => {

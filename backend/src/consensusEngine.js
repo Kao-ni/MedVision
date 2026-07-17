@@ -54,6 +54,28 @@ export function namesAgree(a, b) {
   return normalizeName(a) === normalizeName(b);
 }
 
+function normalizeDosageEvidence(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function supportedJudgeDosage({ rawText, ocrDosage, judgeResult, candidates }) {
+  const judgeCandidate = candidates.find((candidate) => candidate.source === "judge");
+  const dosage = String(judgeResult?.dosage ?? "").trim();
+  if (!judgeCandidate || !dosage) return "";
+
+  const normalizedDosage = normalizeDosageEvidence(dosage);
+  if (!normalizedDosage) return "";
+  if (normalizedDosage === normalizeDosageEvidence(ocrDosage)) {
+    return dosage;
+  }
+
+  const normalizedRawText = normalizeDosageEvidence(rawText);
+  return normalizedRawText.includes(normalizedDosage) ? dosage : "";
+}
+
 /**
  * Collect named candidates from sources that returned a usable name.
  * Judge with uncertain / empty name does not count as a source result.
@@ -94,10 +116,12 @@ function collectNamedCandidates({ thaiResult, openFdaResult, judgeResult }) {
  * Agreement-based resolution. All sources are equal — no winner-picking.
  *
  * - 0 named results → unverified (OCR name)
- * - 1+ results, all same normalized name → consensus suggestion
+ * - 1 result may confirm OCR, but cannot replace a different OCR name
+ * - 2+ agreeing sources may correct the OCR name
  * - 2+ results with different names → disagreement (user picks)
  */
 export function resolveConsensus({
+  rawText = "",
   ocrName = "",
   ocrDosage = "",
   thaiResult = null,
@@ -105,10 +129,6 @@ export function resolveConsensus({
   judgeResult = null
 } = {}) {
   const candidates = collectNamedCandidates({ thaiResult, openFdaResult, judgeResult });
-  const dosageFromJudge =
-    judgeResult?.dosage && String(judgeResult.dosage).trim()
-      ? String(judgeResult.dosage).trim()
-      : "";
 
   if (candidates.length === 0) {
     return {
@@ -136,20 +156,28 @@ export function resolveConsensus({
 
   const agreedName = candidates[0].name;
   const sources = new Set(candidates.map((c) => c.source));
-  let label = "verified";
-  if (sources.size === 1 && sources.has("judge")) {
-    label = "ai_corrected";
-  } else if (sources.size >= 2) {
-    label = "verified";
-  } else {
-    label = "verified";
+  if (!namesAgree(ocrName, agreedName) && sources.size < 2) {
+    return {
+      status: "unverified",
+      finalName: ocrName || "",
+      finalDosage: ocrDosage || "",
+      label: "unverified",
+      candidates
+    };
   }
+
+  const dosageFromJudge = supportedJudgeDosage({
+    rawText,
+    ocrDosage,
+    judgeResult,
+    candidates
+  });
 
   return {
     status: "consensus",
     finalName: agreedName,
     finalDosage: dosageFromJudge || ocrDosage || "",
-    label,
+    label: "verified",
     candidates
   };
 }
@@ -194,6 +222,7 @@ export async function runConsensusPipeline({
   }
 
   const resolution = resolveConsensus({
+    rawText,
     ocrName,
     ocrDosage,
     thaiResult,

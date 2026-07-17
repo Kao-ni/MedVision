@@ -54,3 +54,27 @@ test("scrubbing twice is idempotent for medicine text", () => {
   assert.doesNotMatch(twice.scrubbedText, /Kee/);
   assert.doesNotMatch(twice.scrubbedText, /998877/);
 });
+
+test("unwraps Typhoon natural_text before redacting patient names", () => {
+  const input = JSON.stringify({
+    natural_text: "Boy NANOND NIMITKUL\nMeiact 200 mg tablet"
+  });
+
+  const result = scrubPii(input);
+
+  assert.equal(result.scrubbedText, "[REDACTED]\nMeiact 200 mg tablet");
+  assert.doesNotMatch(result.scrubbedText, /natural_text/);
+  assert.ok(result.categories.includes("person_name"));
+});
+
+test("unwraps fenced Typhoon natural_text output", () => {
+  const input = [
+    "```json",
+    JSON.stringify({ natural_text: "Mr. Kee\nOndansetron 8 mg tablet" }),
+    "```"
+  ].join("\n");
+
+  const result = scrubPii(input);
+
+  assert.equal(result.scrubbedText, "[REDACTED]\nOndansetron 8 mg tablet");
+});
