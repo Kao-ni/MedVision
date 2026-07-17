@@ -143,6 +143,32 @@ test("issue 1: meal schedule mapper produces times for after-food label hint", (
   assert.deepEqual(initState.scheduledTimes, [8 * 3600, 18 * 3600]);
 });
 
+test("issue 1: autoschedule uses the user's custom breakfast time", () => {
+  const userBreakfast = 7 * 3600 + 15 * 60; // 07:15
+  const suggestion = suggestSchedule(
+    {
+      raw: "หลังอาหารเช้า",
+      timeSlots: ["morning"],
+      withFood: "after",
+      asNeeded: false
+    },
+    { breakfast: userBreakfast, lunch: 12 * 3600, dinner: 18 * 3600 }
+  );
+
+  assert.deepEqual(suggestion.times, [userBreakfast]);
+  assert.equal(suggestion.frequencyNote, "หลังอาหารเช้า");
+});
+
+test("backend parse prompt requests when_to_take for meal autoscheduling", () => {
+  const recognizeJs = readFileSync(
+    new URL("../../supabase/functions/recognize-medicine/index.js", import.meta.url),
+    "utf8"
+  );
+  assert.match(recognizeJs, /when_to_take/);
+  assert.match(recognizeJs, /time_slots/);
+  assert.match(recognizeJs, /with_food/);
+});
+
 test("issue 2: RecognizedMedicine carries confidence and warnings through parsing", () => {
   assert.match(recognitionService, /var fieldConfidence: MedicineFieldConfidence/);
   assert.match(recognitionService, /var warnings: \[String\]/);

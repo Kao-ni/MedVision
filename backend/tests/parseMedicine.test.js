@@ -94,3 +94,45 @@ test("marks non-medicine results explicitly", () => {
   assert.deepEqual(result.warnings, ["not_medicine"]);
   assert.equal(result.confidence, "low");
 });
+
+test("preserves structured when_to_take for autoscheduling", () => {
+  const result = parseRecognizedMedicine(JSON.stringify({
+    is_medicine: true,
+    name: "Celebrex",
+    dosage: "200mg",
+    form: "capsule",
+    notes: "Take after breakfast",
+    when_to_take: {
+      raw: "หลังอาหารเช้า",
+      times_per_day: 1,
+      time_slots: ["morning"],
+      with_food: "after",
+      as_needed: false
+    },
+    warnings: []
+  }));
+
+  assert.deepEqual(result.when_to_take, {
+    raw: "หลังอาหารเช้า",
+    times_per_day: 1,
+    time_slots: ["morning"],
+    with_food: "after",
+    as_needed: false
+  });
+});
+
+test("infers when_to_take from Thai after-breakfast notes when model omits it", () => {
+  const result = parseRecognizedMedicine(JSON.stringify({
+    is_medicine: true,
+    name: "Celebrex",
+    dosage: "200mg",
+    form: "capsule",
+    notes: "รับประทานครั้งละ 1 แคปซูล วันละ 1 ครั้งหลังอาหารเช้า",
+    warnings: []
+  }));
+
+  assert.equal(result.when_to_take.with_food, "after");
+  assert.deepEqual(result.when_to_take.time_slots, ["morning"]);
+  assert.equal(result.when_to_take.times_per_day, 1);
+  assert.match(result.when_to_take.raw, /หลังอาหารเช้า/);
+});

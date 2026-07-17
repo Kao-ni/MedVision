@@ -12,6 +12,8 @@ const FORM_KEYWORDS = [
 ];
 
 const STRUCTURED_CONTAINER_KEYS = ["medicine", "parsed", "result", "data", "payload", "fields"];
+const MEAL_SLOTS = new Set(["morning", "midday", "evening", "night"]);
+const WITH_FOOD_VALUES = new Set(["before", "with", "after"]);
 
 function firstNonEmptyLine(text) {
   return text
@@ -83,6 +85,129 @@ function inferForm(text) {
   return "other";
 }
 
+function findWhenToTakeObject(json) {
+  if (json?.when_to_take && typeof json.when_to_take === "object" && !Array.isArray(json.when_to_take)) {
+    return json.when_to_take;
+  }
+
+  for (const containerKey of STRUCTURED_CONTAINER_KEYS) {
+    const container = json?.[containerKey];
+    if (container && typeof container === "object" && !Array.isArray(container)
+      && container.when_to_take && typeof container.when_to_take === "object"
+      && !Array.isArray(container.when_to_take)) {
+      return container.when_to_take;
+    }
+  }
+
+  return null;
+}
+
+function normalizeWhenToTake(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const raw = stringValue(value.raw);
+  let timesPerDay = null;
+  if (typeof value.times_per_day === "number" && Number.isFinite(value.times_per_day)) {
+    timesPerDay = Math.trunc(value.times_per_day);
+  } else if (typeof value.times_per_day === "string" && /^\d+$/.test(value.times_per_day.trim())) {
+    timesPerDay = Number.parseInt(value.times_per_day.trim(), 10);
+  }
+
+  const timeSlots = Array.isArray(value.time_slots)
+    ? value.time_slots
+      .map((slot) => stringValue(slot).toLowerCase())
+      .filter((slot) => MEAL_SLOTS.has(slot))
+    : [];
+
+  const withFoodRaw = stringValue(value.with_food).toLowerCase();
+  const withFood = WITH_FOOD_VALUES.has(withFoodRaw) ? withFoodRaw : null;
+  const asNeeded = value.as_needed === true;
+
+  if (!raw && timesPerDay == null && timeSlots.length === 0 && !withFood && !asNeeded) {
+    return null;
+  }
+
+  return {
+    raw,
+    times_per_day: timesPerDay,
+    time_slots: timeSlots,
+    with_food: withFood,
+    as_needed: asNeeded
+  };
+}
+
+function inferTimesPerDay(text) {
+  const dayMatch = text.match(/วันละ\s*(\d+)\s*ครั้ง/);
+  if (dayMatch) return Number.parseInt(dayMatch[1], 10);
+
+  if (/ทุก\s*4\s*ชั่วโมง|every\s*4\s*hours/i.test(text)) return 6;
+  if (/ทุก\s*6\s*ชั่วโมง|every\s*6\s*hours/i.test(text)) return 4;
+  if (/ทุก\s*8\s*ชั่วโมง|every\s*8\s*hours/i.test(text)) return 3;
+  if (/ทุก\s*12\s*ชั่วโมง|every\s*12\s*hours/i.test(text)) return 2;
+
+  if (/\b(twice daily|2x(?:\s*a)?\s*day|bid)\b/i.test(text)) return 2;
+  if (/\b(three times(?:\s*a)?\s*day|tid|3x(?:\s*a)?\s*day)\b/i.test(text)) return 3;
+  if (/\b(four times(?:\s*a)?\s*day|qid|4x(?:\s*a)?\s*day)\b/i.test(text)) return 4;
+  if (/\b(once daily|once a day|qd)\b/i.test(text)) return 1;
+
+  return null;
+}
+
+function inferTimeSlots(text) {
+  const slots = [];
+  if (/อาหารเช้า|ตอนเช้า|\bเช้า\b|morning|breakfast|\bam\b/i.test(text)) slots.push("morning");
+  if (/อาหารกลางวัน|ตอนกลางวัน|กลางวัน|midday|noon|lunch/i.test(text)) slots.push("midday");
+  if (/อาหารเย็น|ตอนเย็น|\bเย็น\b|evening|dinner|supper/i.test(text)) slots.push("evening");
+  if (/ก่อนนอน|bedtime|at night|nighttime/i.test(text)) slots.push("night");
+
+  // Deduplicate while preserving order.
+  return [...new Set(slots)];
+}
+
+function inferWithFood(text) {
+  if (/ก่อนอาหาร|before (?:food|meals?|eating)/i.test(text)) return "before";
+  if (/พร้อมอาหาร|with (?:food|meals?)/i.test(text)) return "with";
+  if (/หลังอาหาร|after (?:food|meals?|breakfast|lunch|dinner|eating)/i.test(text)) return "after";
+  return null;
+}
+
+function inferAsNeeded(text) {
+  return /เมื่อมีอาการ|เมื่อปวด|เมื่อจำเป็น|as needed|when needed|\bprn\b/i.test(text);
+}
+
+function inferWhenToTakeFromText(...parts) {
+  const text = parts
+    .map((part) => stringValue(part))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  if (!text) return null;
+
+  const timeSlots = inferTimeSlots(text);
+  const withFood = inferWithFood(text);
+  const asNeeded = inferAsNeeded(text);
+  const timesPerDay = inferTimesPerDay(text);
+
+  if (timeSlots.length === 0 && !withFood && !asNeeded && timesPerDay == null) {
+    return null;
+  }
+
+  return {
+    raw: firstNonEmptyLine(text) || text,
+    times_per_day: timesPerDay,
+    time_slots: timeSlots,
+    with_food: withFood,
+    as_needed: asNeeded
+  };
+}
+
+function resolveWhenToTake(json, notes, rawText) {
+  return normalizeWhenToTake(findWhenToTakeObject(json))
+    ?? inferWhenToTakeFromText(notes, rawText);
+}
+
 function extractName(line, dosage) {
   if (!line) return "";
   let name = dosage ? line.replace(dosage, "") : line;
@@ -122,7 +247,8 @@ function parseStructuredMedicine(json, rawText) {
   if (!dosage) missingFields.push("dosage_not_found");
   if (form === "other") missingFields.push("form_not_inferred");
 
-  return {
+  const whenToTake = resolveWhenToTake(json, notes, rawText);
+  const result = {
     name,
     dosage,
     form,
@@ -131,6 +257,10 @@ function parseStructuredMedicine(json, rawText) {
     warnings: [...warnings, ...missingFields],
     rawText
   };
+  if (whenToTake) {
+    result.when_to_take = whenToTake;
+  }
+  return result;
 }
 
 export function parseRecognizedMedicine(rawText) {
@@ -167,8 +297,9 @@ export function parseRecognizedMedicine(rawText) {
   if (!name) warnings.push("name_not_found");
 
   const confidence = warnings.length === 0 ? "high" : warnings.length === 1 ? "medium" : "low";
+  const whenToTake = inferWhenToTakeFromText(text);
 
-  return {
+  const result = {
     name,
     dosage,
     form,
@@ -177,4 +308,8 @@ export function parseRecognizedMedicine(rawText) {
     warnings,
     rawText: text
   };
+  if (whenToTake) {
+    result.when_to_take = whenToTake;
+  }
+  return result;
 }
